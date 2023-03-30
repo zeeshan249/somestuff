@@ -1,0 +1,55 @@
+Project Configuration Steps
+===========================
+
+1. composer require laravel/ui
+
+2. php artisan ui vue
+
+3. npm install
+
+4. npm run dev
+
+5. npm install vuetify
+6. npm install
+
+7. npm install @mdi/font -D
+
+8. Make necessary changes in app.scss and app.js file
+
+9. composer require martinlindhe/laravel-vue-i18n-generator --dev
+
+10. php artisan vendor:publish --provider="MartinLindhe\VueInternationalizationGenerator\GeneratorProvider"
+
+11. npm install vuex --save
+
+12. npm i --save vuex-i18n
+
+13. Next, open config/vue-i18n-generator.php and do the following changes:
+
++ 'i18nLib' => 'vuex-i18n',
+
+14. php artisan  config:cache
+
+15. php artisan vue-i18n:generate
+
+16. npm install vue-router
+
+17. composer require tymon/jwt-auth
+
+18.php artisan vendor:publish --provider="Tymon\JWTAuth\Providers\LaravelServiceProvider"
+
+19. php artisan jwt:secret
+
+20. npm install idle-vue
+
+21. composer require spatie/laravel-permission
+
+22. php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
+
+23.php artisan  config:cache
+
+24. npm install vue-json-excel
+
+25. npm install jspdf --save
+
+26. npm install moment --save

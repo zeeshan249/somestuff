@@ -1,0 +1,7882 @@
+<?php
+
+namespace App\Models;
+
+use DateTime;
+use DB;
+use Exception;
+use function PHPUnit\Framework\isEmpty;
+use Haruncpi\LaravelIdGenerator\IdGenerator;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+
+class AppModel extends Model
+{
+    use HasFactory;
+    /*==================================================Common=========================== */
+    // To check User Status
+    public function checkUserStatus($userId, $roleId)
+    {
+        if ($roleId == "1") {
+            // For customer
+            $getQuery = DB::table('dm_user')
+                ->leftJoin('dm_customer_personal_details', 'dm_user.user_id', '=', 'dm_customer_personal_details.user_id')
+                ->leftJoin('dm_family_member', 'dm_user.user_id', '=', 'dm_family_member.user_id')
+                ->where('dm_user.user_id', '=', $userId)
+                ->where('dm_family_member.is_self', '=', 1)
+
+                ->select([
+                    'dm_user.device_token',
+                    'dm_user.user_id',
+                    'dm_user.role_id',
+                    'dm_user.user_firebase_id',
+                    'dm_user.user_is_active',
+                    'dm_user.logout_user',
+                    'dm_user.user_mobile',
+                    DB::raw('DATE_FORMAT(dm_user.user_created_at, "%d-%m-%Y") as user_created_at', "%d-%m-%Y"),
+                    'dm_customer_personal_details.customer_first_name',
+                    'dm_customer_personal_details.customer_last_name',
+                    'dm_customer_personal_details.customer_full_name',
+                    'dm_customer_personal_details.customer_profile_image',
+                    'dm_family_member.family_member_id',
+                    'dm_family_member.family_member_token',
+
+                ])
+                ->get();
+            $getResult = $getQuery->toArray();
+            if ($getResult[0]->family_member_token == null || $getResult[0]->family_member_token = '') {
+                DB::table('dm_family_member')
+                    ->where('user_id', $userId)
+                    ->update(['family_member_token' => $getResult[0]->device_token]);
+            }
+
+        } else if ($roleId == "2") {
+            // For clinic
+            $getQuery = DB::table('dm_user')
+                ->leftJoin('dm_clinic', 'dm_user.user_id', '=', 'dm_clinic.user_id')
+                ->where('dm_user.user_id', '=', $userId)
+
+                ->select([
+                    'dm_user.user_id',
+                    'dm_user.role_id',
+                    'dm_user.user_firebase_id',
+                    'dm_user.user_is_active',
+                    'dm_user.logout_user',
+                    'dm_user.user_mobile',
+                    DB::raw('DATE_FORMAT(dm_user.user_created_at, "%d-%m-%Y") as user_created_at', "%d-%m-%Y"),
+                    'dm_clinic.clinic_first_name',
+                    'dm_clinic.clinic_last_name',
+                    'dm_clinic.clinic_full_name',
+                    'dm_clinic.clinic_profile_image',
+                    'dm_clinic.clinic_id',
+                    'dm_clinic.is_master_clinic',
+
+                ])
+                ->get();
+        } else if ($roleId == "3") {
+            // For doctor
+            $getQuery = DB::table('dm_user')
+                ->leftJoin('dm_doctor', 'dm_user.user_id', '=', 'dm_doctor.user_id')
+                ->where('dm_user.user_id', '=', $userId)
+                ->select([
+                    'dm_user.user_id',
+                    'dm_user.role_id',
+                    'dm_user.user_firebase_id',
+                    'dm_user.user_is_active',
+                    'dm_user.logout_user',
+                    'dm_user.user_mobile',
+                    DB::raw('DATE_FORMAT(dm_user.user_created_at, "%d-%m-%Y") as user_created_at', "%d-%m-%Y"),
+                    'dm_doctor.doctor_first_name',
+                    'dm_doctor.doctor_last_name',
+                    'dm_doctor.doctor_full_name',
+                    'dm_doctor.doctor_profile_image',
+                    'dm_doctor.doctor_id',
+
+                ])
+                ->get();
+        } else if ($roleId == "4") {
+            // For doctor
+            $getQuery = DB::table('dm_user')
+                ->leftJoin('dm_staff', 'dm_user.user_id', '=', 'dm_staff.user_id')
+                ->where('dm_user.user_id', '=', $userId)
+                ->select([
+                    'dm_user.user_id',
+                    'dm_user.role_id',
+                    'dm_user.user_firebase_id',
+                    'dm_user.user_is_active',
+                    'dm_user.logout_user',
+                    'dm_user.user_mobile',
+                    DB::raw('DATE_FORMAT(dm_user.user_created_at, "%d-%m-%Y") as user_created_at', "%d-%m-%Y"),
+                    'dm_staff.staff_first_name',
+                    'dm_staff.staff_last_name',
+                    'dm_staff.staff_full_name',
+                    'dm_staff.staff_profile_image',
+                    'dm_staff.staff_id',
+
+                ])
+                ->get();
+        }
+
+        $getResult = $getQuery->toArray();
+        return $getResult;
+    }
+
+    // To check Mobile Number
+    public function checkMobileNumber($mobileNumber)
+    {
+
+        $getRoleQuery = DB::table('dm_user')
+            ->where('dm_user.user_mobile', '=', $mobileNumber)
+            ->get();
+
+        if ($getRoleQuery->count() > 0) {
+            $getRoleResult = $getRoleQuery->toArray();
+            if ($getRoleResult[0]->role_id == "1") {
+                // For Customer
+                $getQuery = DB::table('dm_user')
+                    ->leftJoin('dm_customer_personal_details', 'dm_user.user_id', '=', 'dm_customer_personal_details.user_id')
+                    ->leftJoin('dm_family_member', 'dm_user.user_id', '=', 'dm_family_member.user_id')
+                    ->where('dm_user.user_mobile', '=', $mobileNumber)
+                    ->where('dm_family_member.is_self', '=', 1)
+                    ->select([
+                        'dm_user.user_id',
+                        'dm_user.role_id',
+                        'dm_user.user_firebase_id',
+                        'dm_user.user_is_active',
+                        'dm_user.logout_user',
+                        'dm_user.user_mobile',
+                        DB::raw('DATE_FORMAT(dm_user.user_created_at, "%d-%m-%Y") as user_created_at', "%d-%m-%Y"),
+                        'dm_customer_personal_details.customer_first_name',
+                        'dm_customer_personal_details.customer_last_name',
+                        'dm_customer_personal_details.customer_full_name',
+                        'dm_customer_personal_details.customer_profile_image',
+                        'dm_family_member.family_member_id',
+                    ])
+                    ->get();
+            } else if ($getRoleResult[0]->role_id == "2") {
+                // For Clinic
+                $getQuery = DB::table('dm_user')
+                    ->leftJoin('dm_clinic', 'dm_user.user_id', '=', 'dm_clinic.user_id')
+                    ->where('dm_user.user_mobile', '=', $mobileNumber)
+                    ->select([
+                        'dm_user.user_id',
+                        'dm_user.role_id',
+                        'dm_user.user_firebase_id',
+                        'dm_user.user_is_active',
+                        'dm_user.logout_user',
+                        'dm_user.user_mobile',
+                        DB::raw('DATE_FORMAT(dm_user.user_created_at, "%d-%m-%Y") as user_created_at', "%d-%m-%Y"),
+                        'dm_clinic.clinic_first_name',
+                        'dm_clinic.clinic_last_name',
+                        'dm_clinic.clinic_full_name',
+                        'dm_clinic.clinic_profile_image',
+                        'dm_clinic.clinic_id',
+                        'dm_clinic.is_master_clinic',
+
+                    ])
+                    ->get();
+            } else if ($getRoleResult[0]->role_id == "3") {
+                // For Doctor
+                $getQuery = DB::table('dm_user')
+                    ->leftJoin('dm_doctor', 'dm_user.user_id', '=', 'dm_doctor.user_id')
+                    ->where('dm_user.user_mobile', '=', $mobileNumber)
+                    ->select([
+                        'dm_user.user_id',
+                        'dm_user.role_id',
+                        'dm_user.user_firebase_id',
+                        'dm_user.user_is_active',
+                        'dm_user.logout_user',
+                        'dm_user.user_mobile',
+                        DB::raw('DATE_FORMAT(dm_user.user_created_at, "%d-%m-%Y") as user_created_at', "%d-%m-%Y"),
+                        'dm_doctor.doctor_first_name',
+                        'dm_doctor.doctor_last_name',
+                        'dm_doctor.doctor_full_name',
+                        'dm_doctor.doctor_profile_image',
+                        'dm_doctor.doctor_id',
+
+                    ])
+                    ->get();
+            } else if ($getRoleResult[0]->role_id == "4") {
+                // For Staff
+                $getQuery = DB::table('dm_user')
+                    ->leftJoin('dm_staff', 'dm_user.user_id', '=', 'dm_staff.user_id')
+                    ->where('dm_user.user_mobile', '=', $mobileNumber)
+                    ->select([
+                        'dm_user.user_id',
+                        'dm_user.role_id',
+                        'dm_user.user_firebase_id',
+                        'dm_user.user_is_active',
+                        'dm_user.logout_user',
+                        'dm_user.user_mobile',
+                        DB::raw('DATE_FORMAT(dm_user.user_created_at, "%d-%m-%Y") as user_created_at', "%d-%m-%Y"),
+                        'dm_staff.staff_first_name',
+                        'dm_staff.staff_last_name',
+                        'dm_staff.staff_full_name',
+                        'dm_staff.staff_profile_image',
+                        'dm_staff.staff_id',
+
+                    ])
+                    ->get();
+            }
+            $getResult = $getQuery->toArray();
+            return $getResult;
+        } else {
+            return [];
+        }
+
+    }
+
+    // To check login
+    public function checkLogin($mobile, $password, $userDeviceToken)
+    {
+
+        $getBcryptPasswordQuery = DB::table('dm_user')
+            ->where('user_mobile', '=', $mobile)
+            ->select(['password', 'role_id'])
+            ->get();
+        if ($getBcryptPasswordQuery->count() > 0) {
+            $bcryptPassword = $getBcryptPasswordQuery[0]->password;
+            if (password_verify($password, $bcryptPassword)) {
+
+                if ($getBcryptPasswordQuery[0]->role_id == "1") {
+                    // For Customer
+                    $getQuery = DB::table('dm_user')
+                        ->leftJoin('dm_customer_personal_details', 'dm_user.user_id', '=', 'dm_customer_personal_details.user_id')
+                        ->leftJoin('dm_family_member', 'dm_user.user_id', '=', 'dm_family_member.user_id')
+                        ->where('dm_user.user_mobile', '=', $mobile)
+                        ->where('dm_family_member.is_self', '=', 1)
+                        ->select([
+                            'dm_user.user_id',
+                            'dm_user.role_id',
+                            'dm_user.user_firebase_id',
+                            'dm_user.user_is_active',
+                            'dm_user.logout_user',
+                            'dm_user.user_mobile',
+                            DB::raw('DATE_FORMAT(dm_user.user_created_at, "%d-%m-%Y") as user_created_at', "%d-%m-%Y"),
+                            'dm_customer_personal_details.customer_first_name',
+                            'dm_customer_personal_details.customer_last_name',
+                            'dm_customer_personal_details.customer_full_name',
+                            'dm_customer_personal_details.customer_profile_image',
+                            'dm_family_member.family_member_id',
+                        ])
+                        ->get();
+                } else if ($getBcryptPasswordQuery[0]->role_id == "2") {
+                    // For Clinic
+                    $getQuery = DB::table('dm_user')
+                        ->leftJoin('dm_clinic', 'dm_user.user_id', '=', 'dm_clinic.user_id')
+                        ->where('dm_user.user_mobile', '=', $mobile)
+                        ->select([
+                            'dm_user.user_id',
+                            'dm_user.role_id',
+                            'dm_user.user_firebase_id',
+                            'dm_user.user_is_active',
+                            'dm_user.logout_user',
+                            'dm_user.user_mobile',
+                            DB::raw('DATE_FORMAT(dm_user.user_created_at, "%d-%m-%Y") as user_created_at', "%d-%m-%Y"),
+                            'dm_clinic.clinic_first_name',
+                            'dm_clinic.clinic_last_name',
+                            'dm_clinic.clinic_full_name',
+                            'dm_clinic.clinic_profile_image',
+                            'dm_clinic.clinic_id',
+                            'dm_clinic.is_master_clinic',
+
+                        ])
+                        ->get();
+                } else if ($getBcryptPasswordQuery[0]->role_id == "3") {
+                    // For Doctor
+                    $getQuery = DB::table('dm_user')
+                        ->leftJoin('dm_doctor', 'dm_user.user_id', '=', 'dm_doctor.user_id')
+                        ->where('dm_user.user_mobile', '=', $mobile)
+                        ->select([
+                            'dm_user.user_id',
+                            'dm_user.role_id',
+                            'dm_user.user_firebase_id',
+                            'dm_user.user_is_active',
+                            'dm_user.logout_user',
+                            'dm_user.user_mobile',
+                            DB::raw('DATE_FORMAT(dm_user.user_created_at, "%d-%m-%Y") as user_created_at', "%d-%m-%Y"),
+                            'dm_doctor.doctor_first_name',
+                            'dm_doctor.doctor_last_name',
+                            'dm_doctor.doctor_full_name',
+                            'dm_doctor.doctor_profile_image',
+                            'dm_doctor.doctor_id',
+
+                        ])
+                        ->get();
+                } else if ($getBcryptPasswordQuery[0]->role_id == "4") {
+                    // For Staff
+                    $getQuery = DB::table('dm_user')
+                        ->leftJoin('dm_staff', 'dm_user.user_id', '=', 'dm_staff.user_id')
+                        ->where('dm_user.user_mobile', '=', $mobile)
+                        ->select([
+                            'dm_user.user_id',
+                            'dm_user.role_id',
+                            'dm_user.user_firebase_id',
+                            'dm_user.user_is_active',
+                            'dm_user.logout_user',
+                            'dm_user.user_mobile',
+                            DB::raw('DATE_FORMAT(dm_user.user_created_at, "%d-%m-%Y") as user_created_at', "%d-%m-%Y"),
+                            'dm_staff.staff_first_name',
+                            'dm_staff.staff_last_name',
+                            'dm_staff.staff_full_name',
+                            'dm_staff.staff_profile_image',
+                            'dm_staff.staff_id',
+
+                        ])
+                        ->get();
+                }
+
+                $getResult = $getQuery->toArray();
+                $this->updateDeviceToken($getResult[0]->user_id, $userDeviceToken);
+                return $getResult;
+            } else {
+                return [];
+            }
+        } else {
+            return [];
+        }
+    }
+
+// Update Device Token
+    public function updateDeviceToken($userId, $userDeviceToken)
+    {
+        try
+        {
+            DB::beginTransaction();
+
+            DB::table('dm_family_member')
+                ->where('user_id', $userId)
+                ->update(['family_member_token' => $userDeviceToken]);
+
+            DB::table('dm_user')
+                ->where('user_id', $userId)
+                ->update(['device_token' => $userDeviceToken]);
+
+            DB::table('dm_clinic')
+                ->where('user_id', $userId)
+                ->update(['clinic_device_token' => $userDeviceToken]);
+            DB::table('dm_doctor')
+                ->where('user_id', $userId)
+                ->update(['doctor_device_token' => $userDeviceToken]);
+
+            DB::commit();
+            $getResult['result'] = "success";
+
+            return $getResult;
+
+        } catch (Exception $ex) {
+            DB::rollback();
+
+        }
+
+    }
+    // To get city
+    public function getCity($pageNumber, $itemToLoad, $searchText)
+    {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getQuery = DB::table('dm_city')
+            ->where('city_is_active', '=', 1)
+            ->where('city_name', 'like', '%' . $searchText . '%')
+            ->select(['city_id',
+                'city_name',
+            ])
+            ->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->orderBy('city_flag', 'desc')
+            ->orderBy('city_name', 'asc')
+            ->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+// To send password
+    public function sendPassword($mobileNumber)
+    {
+        try {
+            $getQuery = DB::table('dm_user')->where('user_mobile', $mobileNumber)->get();
+            if ($getQuery->count() == 0) {
+                $resultData['result'] = "MobileInvalid";
+            } else {
+                $resultData['result'] = "success";
+                $this->sendSMSPassword($mobileNumber, $getQuery[0]->password_normal,$getQuery[0]->country_id);
+            }
+        } catch (Exception $ex) {
+            $resultData['result'] = "Exception";
+        }
+
+        return $resultData;
+    }
+// SMS Password
+    public function sendSMSPassword($mobile, $password,$countryId)
+    {
+        try
+        {
+
+            // $smstext = rawurlencode("Your Password is: " . $password . " Regards, PMAITI");
+            // $ch = curl_init("https://www.smsgatewayhub.com/api/mt/SendSMS?APIKey=256dda14-3d85-4e46-83aa-1d12103bc1e2&senderid=PRIMAI&channel=2&DCS=0&flashsms=0&number=$mobile&text=Your%20Password%20is:%20" . $password . "%20Regards,%20PMAITI&route=31&EntityId=1301162038261824606&dlttemplateid=1307162321919268334");
+            // curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            // curl_setopt($ch, CURLOPT_POST, 1);
+            // curl_setopt($ch, CURLOPT_POSTFIELDS, "");
+            // curl_setopt($ch, CURLOPT_RETURNTRANSFER, 2);
+            // $result = curl_exec($ch);
+            // if (curl_error($ch)) {
+            //     $result = curl_errno($ch);
+            // }    //amar sir code
+
+            if($countryId=="5")
+            {
+                 $ch="https://www.smsgatewayhub.com/api/mt/SendSMS?APIKey=qB37ddQ1W0Sc6izWDZ4gFQ&senderid=RRSMSG&channel=2&DCS=0&flashsms=0&number=".$mobile."&text=Your%20login%20OTP%20code%20is%20".$password."%20RP";
+
+                $curl = curl_init();
+                curl_setopt_array($curl, array(
+                  CURLOPT_URL => $ch,
+                  CURLOPT_RETURNTRANSFER => true,
+                  CURLOPT_ENCODING => "",
+                  CURLOPT_MAXREDIRS => 10,
+                  CURLOPT_TIMEOUT => 30,
+                  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                  CURLOPT_CUSTOMREQUEST => "GET",
+                  CURLOPT_HTTPHEADER => array(
+                    "cache-control: no-cache",
+                    "postman-token: 961b96b9-0e70-8963-4d5d-8c99cb156417"
+                  ),
+                ));
+
+                 $result = curl_exec($curl);
+                if (curl_error($curl)) {
+                    $result = curl_errno($curl);
+                }
+                }
+                else
+                {
+                        $smstext = rawurlencode("Your Password is: " . $password . " Regards, PMAITI");
+                $ch = curl_init("https://www.smsgatewayhub.com/api/mt/SendSMS?APIKey=256dda14-3d85-4e46-83aa-1d12103bc1e2&senderid=PRIMAI&channel=2&DCS=0&flashsms=0&number=$mobile&text=Your%20Password%20is:%20" . $password . "%20Regards,%20PMAITI&route=31&EntityId=1301162038261824606&dlttemplateid=1307162321919268334");
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_POST, 1);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, "");
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, 2);
+                $result = curl_exec($ch);
+                if (curl_error($ch)) {
+                $result = curl_errno($ch);
+                }
+
+                  }
+
+
+
+        } catch (Exception $ex) {
+            $result = $ex->getMessage();
+        }
+
+        return response()->json($result);
+    }
+
+// To get area
+    public function getArea($pageNumber, $itemToLoad, $searchText, $cityId)
+    {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getQuery = DB::table('dm_area')
+            ->where('area_is_active', '=', 1)
+            ->where('city_id', '=', $cityId)
+            ->where('area_name', 'like', '%' . $searchText . '%')
+            ->select(['area_id',
+                'city_id',
+                'area_name',
+            ])
+            ->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->orderBy('area_name', 'asc')
+            ->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+    // To get the slider
+    public function getSlider($sliderPosition, $areaId, $cityId)
+    {
+
+        if ($areaId == "0") {
+            $getQuery = DB::table('dm_slider')
+                //->whereRaw("FIND_IN_SET($sliderPosition,slider_position)")
+                //->whereRaw("FIND_IN_SET($cityId,city_id)")
+                ->where('slider_is_active', '=', 1)
+                ->whereRaw('now() between slider_active_from and slider_active_to')
+                ->select(['slider_id',
+                    'slider_image',
+                    'vendor_id',
+
+                ])
+                ->orderBy('slider_preference_order', 'desc')
+                ->get();
+        } else {
+            $getQuery = DB::table('dm_slider')
+                ->where('slider_position', '=', $sliderPosition)
+                //->whereRaw("FIND_IN_SET($areaId,area_id)")
+                //->whereRaw("FIND_IN_SET($cityId,city_id)")
+                ->where('slider_is_active', '=', 1)
+                ->whereRaw('now() between slider_active_from and slider_active_to')
+                ->select(['slider_id',
+                    'slider_image',
+                    'vendor_id',
+
+                ])
+                ->orderBy('slider_preference_order', 'desc')
+                ->get();
+        }
+
+        $getResult = $getQuery->toArray();
+        return $getResult;
+    }
+
+    // To get the disease category
+    public function getDiseaseCategory($pageNumber, $itemToLoad, $searchText, $cityId, $areaId, $position)
+    {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+        if ($areaId == "0") {
+           /* $getQuery = DB::table('dm_disease_category')
+                ->rightJoin('dm_doctor', 'dm_disease_category.disease_category_id', '=', 'dm_doctor.disease_category_id')
+                ->whereRaw("FIND_IN_SET($position,dm_disease_category.dm_disease_category_position)")
+                ->where('dm_disease_category.disease_category_active', '=', 1)
+                ->whereRaw("FIND_IN_SET($cityId,dm_disease_category.city_id)")
+                ->where('dm_disease_category.disease_category_name', 'like', '%' . $searchText . '%')
+                ->select(['dm_disease_category.disease_category_id',
+                    'dm_disease_category.disease_category_name',
+                    'dm_disease_category.disease_category_image',
+                ])
+                ->limit($itemToLoad)
+                ->offset($pageNumber)
+            //->inRandomOrder()
+                ->groupBy('dm_disease_category.disease_category_id')
+                ->get();*/
+                
+                $getQuery = DB::table('dm_disease_category')
+                ->leftjoin("dm_doctor",\DB::raw("FIND_IN_SET(`dm_disease_category`.`disease_category_id`, dm_doctor.disease_category_id)"),">",\DB::raw("'0'"))
+                ->whereRaw("FIND_IN_SET($position,dm_disease_category.dm_disease_category_position)")
+                ->where('dm_disease_category.disease_category_active', '=', 1)
+                ->whereRaw("FIND_IN_SET($cityId,dm_disease_category.city_id)")
+                ->where('dm_disease_category.disease_category_name', 'like', '%' . $searchText . '%')
+                ->select(['dm_disease_category.disease_category_id',
+                    'dm_disease_category.disease_category_name',
+                    'dm_disease_category.disease_category_image',
+                ])
+                ->limit($itemToLoad)
+                ->offset($pageNumber)
+                ->groupBy('dm_disease_category.disease_category_id')
+                ->get();
+
+        } else {
+            /*$getQuery = DB::table('dm_disease_category')
+                ->rightJoin('dm_doctor', 'dm_disease_category.disease_category_id', '=', 'dm_doctor.disease_category_id')
+                ->whereRaw("FIND_IN_SET($position,dm_disease_category.dm_disease_category_position)")
+                ->where('dm_disease_category.disease_category_active', '=', 1)
+                ->whereRaw("FIND_IN_SET($cityId,dm_disease_category.city_id)")
+                ->whereRaw("FIND_IN_SET($areaId,dm_disease_category.area_id)")
+                ->where('dm_disease_category.disease_category_name', 'like', '%' . $searchText . '%')
+                ->select(['dm_disease_category.disease_category_id',
+                    'dm_disease_category.disease_category_name',
+                    'dm_disease_category.disease_category_image',
+                ])
+                ->limit($itemToLoad)
+                ->offset($pageNumber)
+            //->inRandomOrder()
+                ->groupBy('dm_disease_category.disease_category_id')
+                ->get();*/
+                
+                $getQuery = DB::table('dm_disease_category')
+                ->leftjoin("dm_doctor",\DB::raw("FIND_IN_SET(`dm_disease_category`.`disease_category_id`, dm_doctor.disease_category_id)"),">",\DB::raw("'0'"))
+                ->whereRaw("FIND_IN_SET($position,dm_disease_category.dm_disease_category_position)")
+                ->where('dm_disease_category.disease_category_active', '=', 1)
+                ->whereRaw("FIND_IN_SET($cityId,dm_disease_category.city_id)")
+                ->whereRaw("FIND_IN_SET($areaId,dm_disease_category.area_id)")
+                ->where('dm_disease_category.disease_category_name', 'like', '%' . $searchText . '%')
+                ->select(['dm_disease_category.disease_category_id',
+                    'dm_disease_category.disease_category_name',
+                    'dm_disease_category.disease_category_image',
+                ])
+                ->limit($itemToLoad)
+                ->offset($pageNumber)
+                ->groupBy('dm_disease_category.disease_category_id')
+                ->get();
+        }
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+    // To get the all health tips
+    public function getHealthTips($pageNumber, $itemToLoad, $userId, $roleId)
+    {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+        $getQuery = DB::table('dm_health_tips')
+            ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_health_tips.user_id')
+            ->where('dm_health_tips.health_tip_is_active', '=', 1)
+            ->select([
+                'dm_health_tips.health_tip_id',
+                'dm_health_tips.user_id',
+                'dm_health_tips.health_tip_title',
+                'dm_health_tips.health_tip_content',
+                'dm_health_tips.health_tip_image',
+                'dm_health_tips.health_tip_has_url',
+                'dm_health_tips.health_tip_url',
+                'dm_health_tips.user_first_name',
+                'dm_health_tips.user_last_name',
+                'dm_health_tips.user_full_name',
+                'dm_health_tips.user_profile_image',
+
+                DB::raw('DATE_FORMAT(dm_health_tips.health_tip_created_at, "%d-%m-%Y") as health_tip_created_at', "%d-%m-%Y"),
+                DB::raw("(SELECT count(*) FROM dm_health_tips_like  where dm_health_tips.health_tip_id=
+         dm_health_tips_like.health_tip_id
+) as total_like"),
+                DB::raw("(SELECT group_concat(dm_health_tips_like.user_id)
+     FROM dm_health_tips_like
+     where  dm_health_tips.health_tip_id=dm_health_tips_like.health_tip_id
+and
+dm_health_tips_like.user_id=$userId
+) as all_liked_users"),
+                DB::raw("(SELECT count(*) FROM dm_health_tips_comment
+          where dm_health_tips.health_tip_id=dm_health_tips_comment.health_tip_id
+
+) as total_comment"),
+                DB::raw("(SELECT group_concat(dm_health_tips_comment.user_id)
+      FROM dm_health_tips_comment
+       where  dm_health_tips.health_tip_id=dm_health_tips_comment.health_tip_id
+and dm_health_tips_comment.user_id=$userId
+) as all_comment_users"),
+            ])
+
+            ->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->orderBy(DB::raw("DATE_FORMAT(dm_health_tips.health_tip_created_at,'%d-%m-%Y %h:%i:%s')"), 'desc')
+            ->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+       public function getHealthTips1($pageNumber, $itemToLoad, $userId, $roleId)
+    {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+        $getQuery = DB::table('dm_health_tips')
+            ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_health_tips.user_id')
+            ->where('dm_health_tips.health_tip_is_active', '=', 1)
+            ->select([
+                'dm_health_tips.health_tip_id',
+                'dm_health_tips.user_id',
+     
+
+             
+            ])
+            ->selectRaw(   DB::raw("(SELECT group_concat(dm_health_tips_comment.user_id)
+            FROM dm_health_tips_comment
+             where  dm_health_tips.health_tip_id=dm_health_tips_comment.health_tip_id
+      and dm_health_tips_comment.user_id=?
+      ) as all_comment_users"),[$userId])
+
+            ->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->orderBy(DB::raw("DATE_FORMAT(dm_health_tips.health_tip_created_at,'%d-%m-%Y %h:%i:%s')"), 'desc')
+            ->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+    //To insert  health tips like
+    public function saveHealthTipsLike($userId, $healthTipsId, $userFirstName,
+        $userLastName, $userFullName, $userProfileImage) {
+        $getQuery = DB::table('dm_health_tips_like')
+            ->where('health_tip_id', $healthTipsId)
+            ->where('user_id', $userId)
+            ->get();
+        if ($getQuery->count() > 0) {
+            DB::table('dm_health_tips_like')
+                ->where('health_tip_id', $healthTipsId)
+                ->where('user_id', $userId)->delete();
+
+            $resultData['result'] = "delete";
+        } else {
+            $insertQuery = DB::table('dm_health_tips_like')->insertGetId(
+                ['health_tip_id' => $healthTipsId,
+                    'user_id' => $userId,
+                    'user_first_name' => $userFirstName,
+                    'user_last_name' => $userLastName,
+                    'user_full_name' => $userFullName,
+                    'user_profile_image' => $userProfileImage,
+
+                ]
+            );
+            if ($insertQuery > 0) {
+                $resultData['result'] = "success";
+            } else {
+                $resultData['result'] = "fail";
+            }
+        }
+        return $resultData;
+    }
+
+    //To insert  post like
+    public function deleteHealthTips($healthTipsId, $healthTipsImage)
+    {
+
+        DB::table('dm_health_tips')
+            ->where('health_tip_id', $healthTipsId)
+            ->delete();
+
+        if (file_exists(storage_path('app/public/health_tip_image/' . $healthTipsImage))) {
+            unlink(storage_path('app/public/health_tip_image/' . $healthTipsImage));
+        }
+        $resultData['result'] = "delete";
+
+        return $resultData;
+    }
+
+    // To get the all post
+    public function getHealthTipComment($healthTipsId, $pageNumber, $itemToLoad)
+    {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+        $getQuery = DB::table('dm_health_tips_comment')
+
+            ->where('dm_health_tips_comment.health_tip_id', '=', $healthTipsId)
+            ->where('dm_health_tips_comment.health_tip_comment_is_active', '=', 1)
+            ->select([
+                'dm_health_tips_comment.health_tip_comment_id',
+                'dm_health_tips_comment.health_tip_comment_text',
+                'dm_health_tips_comment.user_first_name', 'dm_health_tips_comment.user_last_name',
+                'dm_health_tips_comment.user_full_name', 'dm_health_tips_comment.user_profile_image',
+                DB::raw('(UNIX_TIMESTAMP(health_tip_comment_date)*1000) as health_tip_comment_date', "%d-%m-%Y"),
+                DB::raw("(SELECT count(*) FROM dm_health_tips_comment  where dm_health_tips_comment.health_tip_id=$healthTipsId
+          ) as total_comment_count"),
+            ])
+
+            ->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->orderBy(DB::raw("DATE_FORMAT(dm_health_tips_comment.health_tip_comment_date,'%d-%m-%Y')"), 'desc')
+            ->get();
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+    //To insert  comment
+    public function saveHealthTipcomment($healthTipsId, $userId, $comment, $userFirstName,
+        $userLastName, $userFullName, $userProfileImage) {
+
+        $insertQuery = DB::table('dm_health_tips_comment')->insertGetId(
+            ['health_tip_id' => $healthTipsId, 'user_id' => $userId,
+                'health_tip_comment_text' => $comment,
+                'user_first_name' => $userFirstName,
+                'user_last_name' => $userLastName,
+                'user_full_name' => $userFullName,
+                'user_profile_image' => $userProfileImage,
+
+            ]
+        );
+        if ($insertQuery > 0) {
+            $resultData['result'] = "success";
+        } else {
+            $resultData['result'] = "fail";
+        }
+
+        return $resultData;
+    }
+
+    /*==================================================Customer=========================== */
+    // Customer
+    //To register  user
+     public static function registerCustomer($firstName, $lastName, $mobile, $password, $deviceToken, $countryId )
+    {
+      
+        DB::beginTransaction();
+        try {
+            $getQuery = DB::table('dm_user')->where('user_mobile', $mobile)->get();
+           
+            if ($getQuery->count() == 0) {
+               
+                $saveQuery = DB::table('dm_user')->insertGetId(
+                    [
+                        'role_id' => 1,
+                        'user_mobile' => $mobile,
+                        'password' => bcrypt($password),
+                        'password_normal' => $password,
+                        'device_token' => $deviceToken,
+                        'country_id' => $countryId,
+
+                    ]
+                    
+                );
+                              
+                DB::table('dm_customer_personal_details')->insertGetId(
+                    [
+                        'user_id' => $saveQuery,
+                        'customer_first_name' => ucfirst($firstName),
+                        'customer_last_name' => ucfirst($lastName),
+                        'customer_full_name' => ucfirst($firstName) . " " . ucfirst($lastName),
+                        'customer_mobile_number' => $mobile,
+                    ]
+                );
+
+                DB::table('dm_family_member')->insertGetId(
+                    [
+
+                        'family_member_first_name' => ucfirst($firstName),
+                        'family_member_last_name' => ucfirst($lastName),
+                        'family_member_full_name' => ucfirst($firstName) . " " . ucfirst($lastName),
+                        'family_member_mobile_number' => $mobile,
+                        'user_id' => $saveQuery,
+                        'is_self' => 1,
+
+                    ]
+                );
+
+                $getRewardAmountQuery = DB::table('dm_reward_amount_description')->where('reward_amount_description_id', 1)->get();
+                $saveRewardQuery = DB::table('dm_reward')->insertGetId(
+                    [
+                        'user_id' => $saveQuery,
+                        'reward_balance' => $getRewardAmountQuery[0]->reward_amount,
+
+                    ]
+                );
+
+                DB::table('dm_reward_transaction')->insertGetId(
+                    [
+                        'reward_id' => $saveRewardQuery,
+                        'user_id' => $saveQuery,
+                        'reward_transaction_balance' => $getRewardAmountQuery[0]->reward_amount,
+                        'reward_transaction_remarks' => $getRewardAmountQuery[0]->reward_amount_description,
+                        'is_reward_balance_added' => 1,
+
+                    ]
+                );
+
+            } else {
+                $resultData['result'] = "MobileExists";
+                return $resultData;
+            }
+            DB::commit();
+            $resultData['result'] = $saveQuery;
+            $resultData['user_created_at'] = date('d-m-Y');
+            return $resultData;
+        } catch (Exception $ex) {
+
+            DB::rollback();
+            $resultData['result'] = "Exception";
+            return $resultData;
+        }
+
+    }
+
+
+    // search doctor clinic speciality
+    public function searchDoctorClinicSpeciality($searchText, $pageNumber, $itemToLoad
+        , $cityId, $areaId) {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+        if ($areaId == "0") {
+            $getQuery = DB::select("SELECT dm_clinic.clinic_id as id, dm_clinic.clinic_full_name as name,dm_clinic_image.clinic_image as image,
+            'clinic' as type FROM dm_clinic left join dm_clinic_image on dm_clinic_image.clinic_id=dm_clinic.clinic_id
+                WHERE dm_clinic.clinic_full_name LIKE '%" .
+                $searchText . "%'
+            and dm_clinic.clinic_is_active=1 and dm_clinic_image.clinic_image_type=1
+            and  dm_clinic.is_master_clinic=0
+            and FIND_IN_SET($cityId,city_id)
+
+                       UNION
+                       (SELECT dm_doctor.doctor_id, dm_doctor.doctor_full_name ,dm_doctor.doctor_profile_image as image,'doctor' as type FROM dm_doctor WHERE
+                       dm_doctor.doctor_full_name LIKE '%" .
+                $searchText . "%'  and dm_doctor.doctor_is_active=1
+                and FIND_IN_SET($cityId,city_id))
+                       UNION
+                        (SELECT dm_disease_category.disease_category_id, dm_disease_category.disease_category_name,
+                        dm_disease_category.disease_category_image as image,
+                        'speciality'
+                        as type FROM dm_disease_category
+                        WHERE
+                       dm_disease_category.disease_category_name LIKE '%" .
+                $searchText . "%'  and dm_disease_category.disease_category_active=1
+                 and FIND_IN_SET($cityId,city_id))
+           limit  $itemToLoad offset $pageNumber ");
+        } else {
+            $getQuery = DB::select("SELECT dm_clinic.clinic_id as id, dm_clinic.clinic_full_name as name,dm_clinic_image.clinic_image as image,
+            'clinic' as type FROM dm_clinic left join dm_clinic_image on dm_clinic_image.clinic_id=dm_clinic.clinic_id
+                WHERE dm_clinic.clinic_full_name LIKE '%" .
+                $searchText . "%'
+            and dm_clinic.clinic_is_active=1 and dm_clinic_image.clinic_image_type=1
+              and  dm_clinic.is_master_clinic=0
+            and FIND_IN_SET($areaId,area_id) and FIND_IN_SET($cityId,city_id)
+
+                       UNION
+                       (SELECT dm_doctor.doctor_id, dm_doctor.doctor_full_name ,dm_doctor.doctor_profile_image as image,'doctor' as type FROM dm_doctor WHERE
+                       dm_doctor.doctor_full_name LIKE '%" .
+                $searchText . "%'  and dm_doctor.doctor_is_active=1
+                and FIND_IN_SET($areaId,area_id) and FIND_IN_SET($cityId,city_id))
+                       UNION
+                        (SELECT dm_disease_category.disease_category_id, dm_disease_category.disease_category_name,
+                        dm_disease_category.disease_category_image as image,
+                        'speciality'
+                        as type FROM dm_disease_category
+                        WHERE
+                       dm_disease_category.disease_category_name LIKE '%" .
+                $searchText . "%'  and dm_disease_category.disease_category_active=1  and FIND_IN_SET($areaId,area_id) and FIND_IN_SET($cityId,city_id))
+           limit  $itemToLoad offset $pageNumber ");
+        }
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery));
+            echo json_encode($data_response);
+        }
+    }
+
+    // To get the clinic list
+    public function getClinicList($pageNumber, $itemToLoad, $searchText, $cityId, $areaId, $position)
+    {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+        if ($areaId == "0" && $cityId == "0") {
+            $getQuery = DB::table('dm_clinic')
+                ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_clinic.user_id')
+                ->leftJoin('dm_city', 'dm_city.city_id', '=', 'dm_clinic.city_id')
+                ->leftJoin('dm_clinic_image', 'dm_clinic.clinic_id', '=', 'dm_clinic_image.clinic_id')
+                ->whereRaw("FIND_IN_SET($position,dm_clinic.clinic_position)")
+                ->where('dm_clinic.clinic_is_active', '=', 1)
+                ->where('dm_clinic.is_master_clinic', '=', 0)
+                ->where('dm_clinic.clinic_full_name', 'like', '%' . $searchText . '%')
+                ->where('dm_clinic_image.clinic_image_type', '=', 1)
+                ->where('dm_clinic.clinic_is_approved', '=', 1)
+                ->where('dm_city.city_is_active', '=', 1)
+                ->select([
+                    'dm_clinic.clinic_first_name',
+                    'dm_clinic.clinic_last_name',
+                    'dm_clinic.clinic_full_name',
+                    'dm_clinic.clinic_mobile_number',
+                    'dm_clinic.clinic_id',
+                    'dm_clinic.clinic_address',
+                    'dm_clinic_image.clinic_image',
+                    'dm_city.city_name',
+                    'dm_clinic.clinic_longitude',
+                    'dm_clinic.clinic_latitude',
+                ])
+                ->limit($itemToLoad)
+                ->offset($pageNumber)
+                ->orderBy('dm_clinic.cinic_order_by', 'asc')
+                ->orderBy('dm_clinic.clinic_full_name')
+
+                ->get();
+        } else if ($areaId == "0") {
+            $getQuery = DB::table('dm_clinic')
+                ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_clinic.user_id')
+                ->leftJoin('dm_city', 'dm_city.city_id', '=', 'dm_clinic.city_id')
+                ->leftJoin('dm_clinic_image', 'dm_clinic.clinic_id', '=', 'dm_clinic_image.clinic_id')
+                ->whereRaw("FIND_IN_SET($position,dm_clinic.clinic_position)")
+                ->where('dm_clinic.clinic_is_active', '=', 1)
+                ->where('dm_clinic.is_master_clinic', '=', 0)
+                ->whereRaw("FIND_IN_SET($cityId,dm_clinic.city_id)")
+                ->where('dm_clinic.clinic_full_name', 'like', '%' . $searchText . '%')
+                ->where('dm_clinic_image.clinic_image_type', '=', 1)
+                ->where('dm_clinic.clinic_is_approved', '=', 1)
+                ->where('dm_city.city_is_active', '=', 1)
+                ->select([
+                    'dm_clinic.clinic_first_name',
+                    'dm_clinic.clinic_last_name',
+                    'dm_clinic.clinic_full_name',
+                    'dm_clinic.clinic_mobile_number',
+                    'dm_clinic.clinic_id',
+                    'dm_clinic.clinic_address',
+                    'dm_clinic_image.clinic_image',
+                    'dm_city.city_name',
+                    'dm_clinic.clinic_longitude',
+                    'dm_clinic.clinic_latitude',
+                ])
+                ->limit($itemToLoad)
+                ->offset($pageNumber)
+                ->orderBy('dm_clinic.cinic_order_by', 'asc')
+                ->orderBy('dm_clinic.clinic_full_name')
+                ->get();
+
+        } else {
+            $getQuery = DB::table('dm_clinic')
+                ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_clinic.user_id')
+                ->leftJoin('dm_clinic_image', 'dm_clinic.clinic_id', '=', 'dm_clinic_image.clinic_id')
+                ->leftJoin('dm_city', 'dm_city.city_id', '=', 'dm_clinic.city_id')
+                ->whereRaw("FIND_IN_SET($position,dm_clinic.clinic_position)")
+                ->where('dm_clinic.clinic_is_active', '=', 1)
+                ->where('dm_clinic.is_master_clinic', '=', 0)
+                ->whereRaw("FIND_IN_SET($cityId,dm_clinic.city_id)")
+                ->whereRaw("FIND_IN_SET($areaId,area_id)")
+                ->where('dm_clinic.clinic_full_name', 'like', '%' . $searchText . '%')
+                ->where('dm_clinic_image.clinic_image_type', '=', 1)
+                ->where('dm_clinic.clinic_is_approved', '=', 1)
+                ->where('dm_city.city_is_active', '=', 1)
+                ->select([
+                    'dm_clinic.clinic_first_name',
+                    'dm_clinic.clinic_last_name',
+                    'dm_clinic.clinic_full_name',
+                    'dm_clinic.clinic_mobile_number',
+                    'dm_clinic.clinic_id',
+                    'dm_clinic.clinic_address',
+                    'dm_clinic_image.clinic_image',
+                    'dm_city.city_name',
+                    'dm_clinic.clinic_longitude',
+                    'dm_clinic.clinic_latitude',
+
+                ])
+                ->limit($itemToLoad)
+                ->offset($pageNumber)
+                ->orderBy('dm_clinic.cinic_order_by', 'asc')
+                ->orderBy('dm_clinic.clinic_full_name')
+                ->get();
+        }
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+	
+    // To get the doctor list
+    public function getDctorsList($pageNumber, $itemToLoad, $searchText, $cityId, $areaId, $position, $diseaseCategoryId)
+    {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+        if ($areaId == "0") {
+            if ($diseaseCategoryId == "0") {
+                $getQuery = DB::table('dm_doctor')
+                    ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_doctor.user_id')
+                    ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+                    ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+
+                    ->whereRaw("FIND_IN_SET($position,dm_doctor.doctor_position)")
+                    ->where('dm_doctor.doctor_is_active', '=', 1)
+                    ->whereRaw("FIND_IN_SET($cityId,city_id)")
+                    ->where('dm_doctor.doctor_full_name', 'like', '%' . $searchText . '%')
+                    ->where('dm_specialization.specialization_type', '=', 1)
+                    ->where('dm_doctor_education.education_type', '=', 1)
+                    ->where('dm_doctor.doctor_id', '=', 94)
+                    ->orwhere('dm_doctor.doctor_id', '=', 96)
+                    ->select([
+                        'dm_user.user_id',
+
+                        'dm_doctor.doctor_first_name',
+                        'dm_doctor.doctor_last_name',
+                        'dm_doctor.doctor_full_name',
+                        'dm_doctor.doctor_mobile_number',
+                        'dm_doctor.doctor_profile_image',
+
+                        'dm_specialization.specialization_name',
+                        'dm_doctor.doctor_city',
+                        'dm_doctor.doctor_id',
+                        'dm_doctor.doctor_overall_experience',
+                        'dm_doctor_education.education_name',
+                    ])
+                    ->limit($itemToLoad)
+                    ->offset($pageNumber)
+                    ->orderBy('dm_doctor.doctor_full_name')
+
+                    ->get();
+            } else {
+               
+                $getQuery = DB::table('dm_doctor')
+                    ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_doctor.user_id')
+                    ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+                    ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+                    ->whereRaw("FIND_IN_SET($position,dm_doctor.doctor_position)")
+                    ->where('dm_doctor.doctor_is_active', '=', 1)
+                    ->whereRaw("FIND_IN_SET($cityId,city_id)")
+                    ->where('dm_doctor.doctor_full_name', 'like', '%' . $searchText . '%')
+                    ->where('dm_specialization.specialization_type', '=', 1)
+                    ->whereRaw("FIND_IN_SET($diseaseCategoryId,dm_doctor.disease_category_id)")
+                   //->where('dm_doctor.disease_category_id', '=', $diseaseCategoryId)
+                    ->where('dm_doctor_education.education_type', '=', 1)
+                     //->where('dm_doctor.doctor_id', '=', 94)
+                     //->orwhere('dm_doctor.doctor_id', '=', 96)
+                    ->select([
+                        'dm_user.user_id',
+
+                        'dm_doctor.doctor_first_name',
+                        'dm_doctor.doctor_last_name',
+                        'dm_doctor.doctor_full_name',
+                        'dm_doctor.doctor_mobile_number',
+                        'dm_doctor.doctor_profile_image',
+
+                        'dm_specialization.specialization_name',
+                        'dm_doctor.doctor_city',
+                        'dm_doctor.doctor_id',
+                        'dm_doctor.doctor_overall_experience',
+                        'dm_doctor_education.education_name',
+                    ])
+                    ->limit($itemToLoad)
+                    ->offset($pageNumber)
+                    ->orderBy('dm_doctor.doctor_full_name')
+                    ->get();
+            }
+
+        } else {
+           
+            if ($diseaseCategoryId == "0") {
+                $getQuery = DB::table('dm_doctor')
+                    ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_doctor.user_id')
+                    ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+                    ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+                    ->whereRaw("FIND_IN_SET($position,dm_doctor.doctor_position)")
+                    ->where('dm_doctor.doctor_is_active', '=', 1)
+                    ->whereRaw("FIND_IN_SET($cityId,city_id)")
+                    ->whereRaw("FIND_IN_SET($areaId,area_id)")
+                    ->where('dm_doctor.doctor_full_name', 'like', '%' . $searchText . '%')
+                    ->where('dm_specialization.specialization_type', '=', 1)
+                    ->where('dm_doctor_education.education_type', '=', 1)
+                    ->where('dm_doctor.doctor_id', '=', 94)
+                    ->orwhere('dm_doctor.doctor_id', '=', 96)
+                    ->select([
+                        'dm_user.user_id',
+
+                        'dm_doctor.doctor_first_name',
+                        'dm_doctor.doctor_last_name',
+                        'dm_doctor.doctor_full_name',
+                        'dm_doctor.doctor_mobile_number',
+                        'dm_doctor.doctor_profile_image',
+
+                        'dm_specialization.specialization_name',
+                        'dm_doctor.doctor_city',
+                        'dm_doctor.doctor_id',
+                        'dm_doctor.doctor_overall_experience',
+                        'dm_doctor_education.education_name',
+                    ])
+                    ->limit($itemToLoad)
+                    ->offset($pageNumber)
+                    ->orderBy('dm_doctor.doctor_full_name')
+                    ->get();
+            } else {
+               
+                $getQuery = DB::table('dm_doctor')
+                    ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_doctor.user_id')
+                    ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+                    ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+                    ->whereRaw("FIND_IN_SET($position,dm_doctor.doctor_position)")
+                    ->where('dm_doctor.doctor_is_active', '=', 1)
+                    ->whereRaw("FIND_IN_SET($cityId,city_id)")
+                    ->whereRaw("FIND_IN_SET($areaId,area_id)")
+                    ->where('dm_doctor.doctor_full_name', 'like', '%' . $searchText . '%')
+                    ->where('dm_specialization.specialization_type', '=', 1)
+                    ->whereRaw("FIND_IN_SET($diseaseCategoryId,dm_doctor.disease_category_id)")
+                //->where('dm_doctor.disease_category_id', '=', $diseaseCategoryId)
+                    ->where('dm_doctor_education.education_type', '=', 1)
+                    //->where('dm_doctor.doctor_id', '=', 94)
+                    //->orwhere('dm_doctor.doctor_id', '=', 96)
+                    ->select([
+                        'dm_user.user_id',
+
+                        'dm_doctor.doctor_first_name',
+                        'dm_doctor.doctor_last_name',
+                        'dm_doctor.doctor_full_name',
+                        'dm_doctor.doctor_mobile_number',
+                        'dm_doctor.doctor_profile_image',
+
+                        'dm_specialization.specialization_name',
+                        'dm_doctor.doctor_city',
+                        'dm_doctor.doctor_id',
+                        'dm_doctor.doctor_overall_experience',
+                        'dm_doctor_education.education_name',
+                    ])
+                    ->limit($itemToLoad)
+                    ->offset($pageNumber)
+                    ->orderBy('dm_doctor.doctor_full_name')->get();
+            }
+
+        }
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+// To Change password
+    public function changeCustomerPassword($oldPassword, $newPassword, $userId)
+    {
+        try {
+            $getQuery = DB::table('dm_user')
+                ->where('user_id', '=', $userId)
+                ->select(['password'])
+                ->first();
+            $bcryptPassword = $getQuery->password;
+            if (password_verify($oldPassword, $bcryptPassword)) {
+
+                DB::table('dm_user')
+                    ->where('user_id', $userId)
+                    ->update([
+                        'password' => bcrypt($newPassword),
+                        'password_normal' => $newPassword,
+
+                    ]);
+
+                $resultData['result'] = "success";
+            } else {
+                $resultData['result'] = "wrong";
+            }
+        } catch (Exception $ex) {
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+    }
+
+    // Update profile image
+    public function updateCustomerProfileImage($userId, $fileName)
+    {
+        try {
+            DB::beginTransaction();
+            DB::table('dm_customer_personal_details')
+                ->where('user_id', $userId)
+                ->update(['customer_profile_image' => $fileName]);
+
+            DB::table('dm_family_member')
+                ->where('user_id', $userId)
+                ->where('is_self', '=', 1)
+                ->update(['family_member_profile_image' => $fileName]);
+
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+    // Remove profile image
+    public function removeCustomerProfileImage($userId, $fileName)
+    {
+        try {
+            DB::beginTransaction();
+            DB::table('dm_customer_personal_details')
+                ->where('user_id', $userId)
+                ->update(['customer_profile_image' => null]);
+
+            DB::table('dm_family_member')
+                ->where('user_id', $userId)
+                ->where('is_self', '=', 1)
+                ->update(['family_member_profile_image' => null]);
+
+            if (file_exists(storage_path('app/public/user_profile_pic/' . $fileName))) {
+                unlink(storage_path('app/public/user_profile_pic/' . $fileName));
+            }
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+
+    // update first name
+    public function updateCustomerFirstName($userId, $firstName, $fullName)
+    {
+
+        try {
+            DB::beginTransaction();
+            DB::table('dm_customer_personal_details')
+                ->where('user_id', $userId)
+                ->update(['customer_first_name' => ucfirst($firstName), 'customer_full_name' => $fullName]);
+
+            DB::table('dm_family_member')
+                ->where('user_id', $userId)
+                ->where('is_self', '=', 1)
+                ->update([
+                    'family_member_first_name' => ucfirst($firstName),
+                    'family_member_full_name' => $fullName,
+                ]);
+
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+    //update last name
+    public function updateCustomerLastName($userId, $lastName, $fullName)
+    {
+
+        try {
+            DB::beginTransaction();
+            DB::table('dm_customer_personal_details')
+                ->where('user_id', $userId)
+                ->update(['customer_last_name' => ucfirst($lastName), 'customer_full_name' => $fullName]);
+
+            DB::table('dm_family_member')
+                ->where('user_id', $userId)
+                ->where('is_self', '=', 1)
+                ->update([
+                    'family_member_last_name' => ucfirst($lastName),
+                    'family_member_full_name' => $fullName,
+                ]);
+
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+
+    // update mobile number
+    public function updateCustomerMobileNumber($userId, $mobileNumber)
+    {
+
+        $getQuery = DB::table('dm_user')->
+            where('user_mobile', $mobileNumber)
+            ->where('user_id', '!=', $userId)
+            ->get();
+        if ($getQuery->count() == 0) {
+            try {
+
+                DB::beginTransaction();
+                DB::table('dm_user')
+                    ->where('user_id', $userId)
+
+                    ->update(['user_mobile' => $mobileNumber]);
+                DB::table('dm_customer_personal_details')
+                    ->where('user_id', $userId)
+
+                    ->update(['customer_mobile_number' => $mobileNumber]);
+
+                DB::table('dm_family_member')
+                    ->where('user_id', $userId)
+                    ->where('is_self', '=', 1)
+                    ->update(['family_member_mobile_number' => $mobileNumber]);
+
+                DB::commit();
+                $resultData['result'] = "success";
+            } catch (Exception $ex) {
+                DB::rollback();
+            }
+        } else {
+            $resultData['result'] = "exists";
+        }
+        return $resultData;
+    }
+
+    // to get the customer personal profile details
+    public function getCustomerPersonalProfileDetails($userId)
+    {
+        $getQuery = DB::table('dm_customer_personal_details')
+            ->where('user_id', '=', $userId)
+            ->get();
+        $getResult = $getQuery->toArray();
+        return $getResult;
+    }
+    //update customer personal profile details
+    public function updateCustomerPersonalProfileDetails($userId, $email, $dob, $gender,
+        $bloodGroup, $martitalStatus, $height, $weight, $address) {
+        if ($email != null || !isEmpty($email)) {
+            $getQuery = DB::table('dm_customer_personal_details')->
+                where('customer_email', $email)
+                ->where('user_id', '!=', $userId)
+                ->get();
+            if ($getQuery->count() == 0) {
+                $currentDate = null;
+                $dateDiff = null;
+                if ($dob != null || !isEmpty($dob)) {
+                    $dob = new DateTime($dob);
+                    $currentDate = new DateTime();
+                    $dateDiff = $dob->diff($currentDate);
+                }
+                try {
+                    DB::beginTransaction();
+                    DB::table('dm_customer_personal_details')
+                        ->where('user_id', $userId)
+
+                        ->update(['customer_email' => $email,
+                            'customer_dob' => $dob,
+                            'customer_age' => $dateDiff != null ? $dateDiff->y . " years, " . $dateDiff->m . " months, " . $dateDiff->d . " days" : null,
+                            'customer_gender' => $gender,
+                            'customer_blood_group' => $bloodGroup,
+                            'customer_marital_status' => $martitalStatus,
+                            'customer_height' => $height,
+                            'customer_weight' => $weight,
+                            'customer_address' => $address,
+                        ]);
+
+                    DB::table('dm_family_member')
+                        ->where('user_id', $userId)
+                        ->where('is_self', '=', 1)
+                        ->update(['family_member_email' => $email,
+                            'family_member_dob' => $dob,
+                            'family_member_age' => $dateDiff != null ? $dateDiff->y . " years, " . $dateDiff->m . " months, " . $dateDiff->d . " days" : null,
+                            'family_member_gender' => $gender,
+                            'family_member_blood_group' => $bloodGroup,
+                            'family_member_marital_status' => $martitalStatus,
+                            'family_member_height' => $height,
+                            'family_member_weight' => $weight,
+                            'family_member_address' => $address,
+                        ]);
+
+                    DB::commit();
+                    $resultData['result'] = "success";
+                } catch (Exception $ex) {
+                    DB::rollback();
+                }
+
+            } else {
+                $resultData['result'] = "exists";
+            }
+
+        } else {
+            $currentDate = null;
+            $dateDiff = null;
+            if ($dob != null || !isEmpty($dob)) {
+                $dob = new DateTime($dob);
+                $currentDate = new DateTime();
+                $dateDiff = $dob->diff($currentDate);
+            }
+            try {
+                DB::beginTransaction();
+                DB::table('dm_customer_personal_details')
+                    ->where('user_id', $userId)
+                    ->update([
+                        'customer_email' => $email,
+                        'customer_dob' => $dob,
+                        'customer_age' => $dateDiff != null ? $dateDiff->y . " years, " . $dateDiff->m . " months, " . $dateDiff->d . " days" : null,
+                        'customer_gender' => $gender,
+                        'customer_blood_group' => $bloodGroup,
+                        'customer_marital_status' => $martitalStatus,
+                        'customer_height' => $height,
+                        'customer_weight' => $weight,
+                        'customer_address' => $address,
+                    ]);
+
+                DB::table('dm_family_member')
+                    ->where('user_id', $userId)
+                    ->where('is_self', '=', 1)
+                    ->update([
+                        'family_member_email' => $email,
+                        'family_member_dob' => $dob,
+                        'family_member_age' => $dateDiff != null ? $dateDiff->y . " years, " . $dateDiff->m . " months, " . $dateDiff->d . " days" : null,
+                        'family_member_gender' => $gender,
+                        'family_member_blood_group' => $bloodGroup,
+                        'family_member_marital_status' => $martitalStatus,
+                        'family_member_height' => $height,
+                        'family_member_weight' => $weight,
+                        'family_member_address' => $address,
+                    ]);
+
+                DB::commit();
+                $resultData['result'] = "success";
+            } catch (Exception $ex) {
+                DB::rollback();
+            }
+
+        }
+
+        return $resultData;
+    }
+
+// to get the clinic images
+    public function getClinicImages($clinicId)
+    {
+        $getQuery = DB::table('dm_clinic_image')
+            ->where('dm_clinic_image.clinic_id', '=', $clinicId)
+            ->where('dm_clinic_image.clinic_image_is_active', '=', 1)
+
+            ->select([
+                'dm_clinic_image.clinic_image',
+                'dm_clinic_image.clinic_image_id',
+            ])
+            ->get();
+        $getResult = $getQuery->toArray();
+        return $getResult;
+    }
+
+    // to get the individual clinic details
+    public function getClinicDetails($clinicId)
+    {
+        $getQuery = DB::table('dm_clinic')
+            ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_clinic.user_id')
+            ->leftJoin('dm_city', 'dm_city.city_id', '=', 'dm_clinic.city_id')
+            ->where('dm_clinic.clinic_id', '=', $clinicId)
+            ->where('dm_city.city_is_active', '=', 1)
+            ->select([
+                'dm_clinic.clinic_first_name',
+                'dm_clinic.clinic_last_name',
+                'dm_clinic.clinic_full_name',
+                'dm_clinic.clinic_mobile_number',
+                'dm_clinic.clinic_profile_image',
+                'dm_clinic.clinic_id',
+                'dm_clinic.clinic_address',
+
+                DB::raw('DATE_FORMAT(dm_clinic.clinic_setup_date, "%d-%m-%Y") as clinic_setup_date', "%d-%m-%Y"),
+                'dm_clinic.clinic_license_number',
+                'dm_clinic.clinic_email_id',
+                'dm_clinic.clinic_secondary_mobile',
+                'dm_clinic.clinic_whatsapp',
+                'dm_clinic.clinic_facebook',
+                'dm_clinic.clinic_instagram',
+                'dm_clinic.clinic_description',
+                'dm_clinic.clinic_longitude',
+                'dm_clinic.clinic_latitude',
+                'dm_city.city_name',
+
+            ])
+            ->get();
+        $getResult = $getQuery->toArray();
+        return $getResult;
+    }
+
+    // to get the clinic timing
+    public function getClinicTiming($clinicId)
+    {
+        $getQuery = DB::table('dm_clinic_timing')
+            ->where('dm_clinic_timing.clinic_id', '=', $clinicId)
+            ->where('dm_clinic_timing.clinic_timing_is_active', '=', 1)
+
+            ->select([
+                'dm_clinic_timing.clinic_timing_id',
+                'dm_clinic_timing.clinic_days',
+                'dm_clinic_timing.clinic_timing',
+                'dm_clinic_timing.clinic_open_closed',
+            ])
+            ->get();
+        $getResult = $getQuery->toArray();
+        return $getResult;
+    }
+
+    // to get the clinic service
+    public function getClinicService($clinicId)
+    {
+        $getQuery = DB::table('dm_clinic_service')
+            ->where('dm_clinic_service.clinic_id', '=', $clinicId)
+            ->where('dm_clinic_service.clinic_service_is_active', '=', 1)
+
+            ->select([
+                'dm_clinic_service.clinic_service_id',
+                'dm_clinic_service.clinic_service_name',
+            ])
+            ->get();
+        $getResult = $getQuery->toArray();
+        return $getResult;
+    }
+
+    // To get the doctor list clinic wise
+    public function getDoctorsListClinicWise($pageNumber, $itemToLoad, $clinicId)
+    {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getQuery = DB::table('dm_doctor_clinic_wise')
+            ->leftJoin('dm_doctor', 'dm_doctor.doctor_id', '=', 'dm_doctor_clinic_wise.doctor_id')
+            ->leftJoin('dm_user', 'dm_doctor.user_id', '=', 'dm_user.user_id')
+            ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+            ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+
+            ->where('dm_doctor.doctor_is_active', '=', 1)
+            ->where('dm_doctor_clinic_wise.doctor_clinic_wise_is_active', '=', 1)
+            ->where('dm_specialization.specialization_type', '=', 1)
+            ->where('dm_doctor_clinic_wise.clinic_id', '=', $clinicId)
+            ->where('dm_doctor_education.education_type', '=', 1)
+            ->select([
+                'dm_user.user_id',
+
+                'dm_doctor.doctor_first_name',
+                'dm_doctor.doctor_last_name',
+                'dm_doctor.doctor_full_name',
+                'dm_doctor.doctor_mobile_number',
+                'dm_doctor.doctor_profile_image',
+
+                'dm_specialization.specialization_name',
+                'dm_doctor.doctor_city',
+                'dm_doctor.doctor_id',
+                'dm_doctor.doctor_overall_experience',
+                'dm_doctor_education.education_name',
+
+                'dm_doctor_clinic_wise.in_clinic_appointment_fee_is_visible',
+                'dm_doctor_clinic_wise.video_consultation_fee_is_visible',
+                'dm_doctor_clinic_wise.video_consultation_is_avialable',
+                'dm_doctor_clinic_wise.in_clinic_appointment_fee',
+                'dm_doctor_clinic_wise.in_clinic_service_fee',
+                'dm_doctor_clinic_wise.video_consultation_service_fee',
+                'dm_doctor_clinic_wise.video_consultation_fee',
+
+                'dm_doctor_clinic_wise.in_clinic_consultation_is_avialable',
+                'dm_doctor_clinic_wise.in_clinic_cancellation_days',
+                'dm_doctor_clinic_wise.video_cancellation_days',
+                'dm_doctor_clinic_wise.in_clinic_book_before_days',
+                'dm_doctor_clinic_wise.video_book_before_days',
+            ])
+            ->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->inRandomOrder()
+            ->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+    // to get the doctor details
+    public function getDoctorDetails($doctorId)
+    {
+        $getQuery = DB::table('dm_doctor')
+            ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_doctor.user_id')
+            ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+            ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+
+            ->where('dm_doctor.doctor_is_active', '=', 1)
+            ->where('dm_doctor.doctor_id', '=', $doctorId)
+            ->where('dm_specialization.specialization_type', '=', 1)
+            ->where('dm_doctor_education.education_type', '=', 1)
+            ->select([
+                'dm_user.user_id',
+
+                'dm_doctor.doctor_first_name',
+                'dm_doctor.doctor_last_name',
+                'dm_doctor.doctor_full_name',
+                'dm_doctor.doctor_mobile_number',
+                'dm_doctor.doctor_profile_image',
+
+                'dm_specialization.specialization_name',
+                'dm_doctor_education.education_name',
+                'dm_doctor.doctor_city',
+                'dm_doctor.doctor_id',
+                'dm_doctor.doctor_overall_experience',
+                'dm_doctor.doctor_description',
+                'doctor_registration_number',
+            ])
+            ->get();
+        $getResult = $getQuery->toArray();
+        return $getResult;
+    }
+
+    // to get the doctor associated clinic
+    public function getDoctorAssociatedClinic($doctorId, $clinicId)
+    {
+        /* if ($clinicId == "0") {
+            $getQuery = DB::table('dm_doctor_clinic_wise')
+                ->leftJoin('dm_clinic', 'dm_clinic.clinic_id', '=', 'dm_doctor_clinic_wise.clinic_id')
+                ->leftJoin('dm_city', 'dm_city.city_id', '=', 'dm_clinic.city_id')
+                ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_clinic.user_id')
+                ->leftJoin('dm_clinic_image', 'dm_doctor_clinic_wise.clinic_id', '=', 'dm_clinic_image.clinic_id')
+
+                ->where('dm_doctor_clinic_wise.doctor_clinic_wise_is_active', '=', 1)
+                ->where('dm_clinic.is_master_clinic', '=', 0)
+                ->where('dm_doctor_clinic_wise.doctor_id', '=', $doctorId)
+                ->where('dm_clinic_image.clinic_image_type', '=', 1)
+                ->where('dm_city.city_is_active', '=', 1)
+                ->select([
+                    'dm_user.user_id',
+
+                    'dm_clinic.clinic_first_name',
+                    'dm_clinic.clinic_last_name',
+                    'dm_clinic.clinic_full_name',
+                    'dm_clinic.clinic_mobile_number',
+                    'dm_clinic.clinic_profile_image',
+                    'dm_clinic.clinic_address',
+
+                    'dm_doctor_clinic_wise.doctor_id',
+                    'dm_doctor_clinic_wise.clinic_id',
+                    'dm_doctor_clinic_wise.in_clinic_appointment_fee_is_visible',
+                    'dm_doctor_clinic_wise.video_consultation_fee_is_visible',
+                    'dm_doctor_clinic_wise.video_consultation_is_avialable',
+                    'dm_doctor_clinic_wise.in_clinic_appointment_fee',
+                    'dm_doctor_clinic_wise.video_consultation_fee',
+                    'dm_doctor_clinic_wise.in_clinic_consultation_is_avialable',
+                    'dm_doctor_clinic_wise.in_clinic_service_fee',
+                    'dm_doctor_clinic_wise.video_consultation_service_fee',
+                    'dm_doctor_clinic_wise.in_clinic_cancellation_days',
+                    'dm_doctor_clinic_wise.video_cancellation_days',
+                    'dm_doctor_clinic_wise.in_clinic_book_before_days',
+                    'dm_doctor_clinic_wise.video_book_before_days',
+                    'dm_clinic_image.clinic_image',
+                    'dm_city.city_name',
+                    'dm_clinic.clinic_longitude',
+                    'dm_clinic.clinic_latitude',
+
+                ])
+                ->get();
+        } else { */
+        
+            $getQuery = DB::table('dm_doctor_clinic_wise')
+                ->leftJoin('dm_clinic', 'dm_clinic.clinic_id', '=', 'dm_doctor_clinic_wise.clinic_id')
+                ->leftJoin('dm_city', 'dm_city.city_id', '=', 'dm_clinic.city_id')
+                ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_clinic.user_id')
+                ->leftJoin('dm_clinic_image', 'dm_doctor_clinic_wise.clinic_id', '=', 'dm_clinic_image.clinic_id')
+
+                ->where('dm_doctor_clinic_wise.doctor_clinic_wise_is_active', '=', 1)
+                ->where('dm_clinic.is_master_clinic', '=', 0)
+                ->where('dm_doctor_clinic_wise.doctor_id', '=', $doctorId)
+                //->where('dm_doctor_clinic_wise.clinic_id', '=', $clinicId)
+                ->where('dm_clinic_image.clinic_image_type', '=', 1)
+                ->where('dm_city.city_is_active', '=', 1)
+                ->select([
+                    'dm_user.user_id',
+
+                    'dm_clinic.clinic_first_name',
+                    'dm_clinic.clinic_last_name',
+                    'dm_clinic.clinic_full_name',
+                    'dm_clinic.clinic_mobile_number',
+                    'dm_clinic.clinic_profile_image',
+                    'dm_clinic.clinic_address',
+
+                    'dm_doctor_clinic_wise.doctor_id',
+                    'dm_doctor_clinic_wise.clinic_id',
+                    'dm_doctor_clinic_wise.in_clinic_appointment_fee_is_visible',
+                    'dm_doctor_clinic_wise.video_consultation_fee_is_visible',
+                    'dm_doctor_clinic_wise.video_consultation_is_avialable',
+                    'dm_doctor_clinic_wise.in_clinic_appointment_fee',
+                    'dm_doctor_clinic_wise.video_consultation_fee',
+                    'dm_doctor_clinic_wise.in_clinic_consultation_is_avialable',
+                    'dm_doctor_clinic_wise.in_clinic_service_fee',
+                    'dm_doctor_clinic_wise.video_consultation_service_fee',
+                    'dm_doctor_clinic_wise.in_clinic_cancellation_days',
+                    'dm_doctor_clinic_wise.video_cancellation_days',
+                    'dm_doctor_clinic_wise.in_clinic_book_before_days',
+                    'dm_doctor_clinic_wise.video_book_before_days',
+                    'dm_clinic_image.clinic_image',
+                    'dm_city.city_name',
+                    'dm_clinic.clinic_longitude',
+                    'dm_clinic.clinic_latitude',
+
+                ])
+				->orderBy('dm_clinic.cinic_order_by', 'asc')
+                ->orderBy('dm_clinic.clinic_full_name', 'ASC')
+                ->get();
+        //}
+
+        $getResult = $getQuery->toArray();
+        return $getResult;
+    }
+
+    // to get the doctor other details
+    public function getDoctorOtherDetails($doctorId)
+    {
+        $getQuery = DB::table('dm_doctor')
+            ->leftJoin('dm_doctor_awards_recognisition', 'dm_doctor.doctor_id', '=', 'dm_doctor_awards_recognisition.doctor_id')
+            ->leftJoin('dm_doctor_experience', 'dm_doctor.doctor_id', '=', 'dm_doctor_experience.doctor_id')
+            ->leftJoin('dm_membership', 'dm_doctor.doctor_id', '=', 'dm_membership.doctor_id')
+            ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+            ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+
+            ->where('dm_doctor.doctor_id', '=', $doctorId)
+
+            ->select([
+                DB::raw("(SELECT  group_concat(distinct(dm_doctor_awards_recognisition.awards_recognisition_name))) as awards_recognisition_name"),
+                DB::raw("(SELECT group_concat(distinct(dm_doctor_experience.experience_name))) as experience_name"),
+                DB::raw("(SELECT group_concat(distinct(dm_membership.membership_name))) as membership_name"),
+                DB::raw("(SELECT group_concat(distinct(dm_specialization.specialization_name))) as specialization_name"),
+                DB::raw("(SELECT group_concat(distinct(dm_doctor_education.education_name))) as education_name"),
+            ])
+            ->get();
+        $getResult = $getQuery->toArray();
+        return $getResult;
+    }
+
+// to get the booking slot
+    public function getInClinicBookingSlotDates($clinicId, $doctorId, $isAdmin)
+    {
+        $currentDate = date('Y-m-d');
+        
+        if($isAdmin>0){
+
+               $query="select `dm_doctor`.`doctor_full_name`,
+            `dm_doctor`.`doctor_first_name`,`dm_doctor`.`doctor_last_name`,
+            `dm_doctor`.`doctor_id`, `dm_doctor`.`doctor_profile_image`, `dm_clinic`.`clinic_id`,
+            `dm_clinic`.`clinic_full_name`, `dm_clinic`.`clinic_address`, DATE_FORMAT(dm_in_clinic_slot_dates.in_clinic_slot_dates, '%D %M %Y')
+            as in_clinic_slot_dates, DATE_FORMAT(dm_in_clinic_slot_dates.in_clinic_slot_dates, '%Y-%m-%d')
+            as in_clinic_slot_dates_another_date_format, DATE_FORMAT(now(), '%Y-%m-%d')
+            as server_current_date,`dm_in_clinic_slot_dates`.`in_clinic_slot_dates_id`, `dm_in_clinic_slot`.`in_clinic_slot_id`,
+            `dm_in_clinic_slot`.`slot_name_id`, sum(distinct dm_in_clinic_slot_dates.in_clinic_max_slot_position_datewise) as in_clinic_max_slot_position_datewise,
+            (select COUNT(dm_in_clinic_booking.in_clinic_slot_dates_id) from dm_in_clinic_booking where in_clinic_booking_is_active=1
+            and doctor_id=dm_doctor.doctor_id and in_clinic_slot_dates_id= dm_in_clinic_slot_dates.in_clinic_slot_dates_id) AS booked_slot
+             from `dm_in_clinic_slot_dates` left join `dm_in_clinic_slot`
+             on `dm_in_clinic_slot`.`in_clinic_slot_id` = `dm_in_clinic_slot_dates`.`in_clinic_slot_id`
+             left join `dm_doctor` on `dm_doctor`.`doctor_id` = `dm_in_clinic_slot`.`doctor_id`
+             left join `dm_clinic` on `dm_clinic`.`clinic_id` = `dm_in_clinic_slot`.`clinic_id`
+             left join dm_in_clinic_booking on dm_in_clinic_booking.in_clinic_slot_dates_id = dm_in_clinic_slot_dates.in_clinic_slot_dates_id
+             where `dm_in_clinic_slot_dates`.`in_clinic_slot_dates_is_active` = 1
+             and `dm_in_clinic_slot_dates`.`in_clinic_slot_dates` >= '$currentDate'
+            and `dm_in_clinic_slot`.`clinic_id` = $clinicId and `dm_in_clinic_slot`.`doctor_id` = $doctorId
+             group by `dm_in_clinic_slot_dates`.`in_clinic_slot_dates`"; 
+
+        }
+        else {
+
+                $query="select `dm_doctor`.`doctor_full_name`,
+            `dm_doctor`.`doctor_first_name`,`dm_doctor`.`doctor_last_name`,
+            `dm_doctor`.`doctor_id`, `dm_doctor`.`doctor_profile_image`, `dm_clinic`.`clinic_id`,
+            `dm_clinic`.`clinic_full_name`, `dm_clinic`.`clinic_address`, DATE_FORMAT(dm_in_clinic_slot_dates.in_clinic_slot_dates, '%D %M %Y')
+            as in_clinic_slot_dates, DATE_FORMAT(dm_in_clinic_slot_dates.in_clinic_slot_dates, '%Y-%m-%d')
+            as in_clinic_slot_dates_another_date_format, DATE_FORMAT(now(), '%Y-%m-%d')
+            as server_current_date,`dm_in_clinic_slot_dates`.`in_clinic_slot_dates_id`, `dm_in_clinic_slot`.`in_clinic_slot_id`,
+            `dm_in_clinic_slot`.`slot_name_id`, sum(distinct dm_in_clinic_slot_dates.in_clinic_max_slot_position_datewise) as in_clinic_max_slot_position_datewise,
+            (select COUNT(dm_in_clinic_booking.in_clinic_slot_dates_id) from dm_in_clinic_booking where in_clinic_booking_is_active=1
+            and doctor_id=dm_doctor.doctor_id and in_clinic_slot_dates_id= dm_in_clinic_slot_dates.in_clinic_slot_dates_id and in_clinic_booking_slot_position>30) AS booked_slot
+             from `dm_in_clinic_slot_dates` left join `dm_in_clinic_slot`
+             on `dm_in_clinic_slot`.`in_clinic_slot_id` = `dm_in_clinic_slot_dates`.`in_clinic_slot_id`
+             left join `dm_doctor` on `dm_doctor`.`doctor_id` = `dm_in_clinic_slot`.`doctor_id`
+             left join `dm_clinic` on `dm_clinic`.`clinic_id` = `dm_in_clinic_slot`.`clinic_id`
+             left join dm_in_clinic_booking on dm_in_clinic_booking.in_clinic_slot_dates_id = dm_in_clinic_slot_dates.in_clinic_slot_dates_id
+             where `dm_in_clinic_slot_dates`.`in_clinic_slot_dates_is_active` = 1
+             and `dm_in_clinic_slot_dates`.`in_clinic_slot_dates` >= '$currentDate'
+            and `dm_in_clinic_slot`.`clinic_id` = $clinicId and `dm_in_clinic_slot`.`doctor_id` = $doctorId
+             group by `dm_in_clinic_slot_dates`.`in_clinic_slot_dates`";
+
+        }
+
+        $getQuery = DB::select($query);
+        return $getQuery;
+    }
+
+    // To get the in clinic slot id and position date wise
+    public function getInClinicSlotIdPositionDateWise($inClinicSlotBookingDate, $inClinicSlotId,
+        $clinicId, $doctorId) {
+        $inClinicSlotBookingDate = date("Y-m-d", strtotime($inClinicSlotBookingDate));
+        $getQuery = DB::select("select dm_in_clinic_slot.in_clinic_slot_id,
+        dm_in_clinic_slot.slot_name_id,dm_in_clinic_slot.clinic_id,dm_in_clinic_slot.doctor_id,
+        dm_in_clinic_slot_dates.in_clinic_max_slot_position_datewise,
+        dm_slot_name.slot_name,time_format(dm_in_clinic_slot_dates.in_clinic_slot_start_time,'%h:%i %p') in_clinic_slot_start_time,
+		time_format(dm_in_clinic_slot_dates.in_clinic_slot_end_time,'%h:%i %p' ) in_clinic_slot_end_time
+
+        from dm_in_clinic_slot_dates left join dm_in_clinic_slot on
+         dm_in_clinic_slot.in_clinic_slot_id=dm_in_clinic_slot_dates.in_clinic_slot_id
+         join dm_slot_name on dm_in_clinic_slot.slot_name_id=dm_slot_name.slot_name_id
+
+
+        where dm_in_clinic_slot_dates.in_clinic_slot_dates='$inClinicSlotBookingDate' and
+        dm_in_clinic_slot_dates.in_clinic_slot_dates_is_active=1
+        and
+        dm_in_clinic_slot.clinic_id=$clinicId and
+        dm_in_clinic_slot.doctor_id=$doctorId
+        ");
+        return $getQuery;
+
+    }
+
+    // To get the in clinic slot id and position date wise
+    public function getInClinicSlotIdPositionDateWiseForMyBooking($inClinicSlotBookingDate, $inClinicSlotId)
+    {
+        $inClinicSlotBookingDate = date("Y-m-d", strtotime($inClinicSlotBookingDate));
+        
+        $today_date=date("Y-m-d");
+
+        if($inClinicSlotBookingDate == $today_date)
+        {
+            DB::table('dm_in_clinic_slot_dates')
+                ->where('in_clinic_slot_id', $inClinicSlotId)
+                ->where('in_clinic_slot_dates', $inClinicSlotBookingDate)
+                ->update([
+                    'is_doctor_present_visible' => 'Y'
+                ]);
+        }
+        
+        $getQuery = DB::select("select dm_in_clinic_slot.in_clinic_slot_id,
+        dm_in_clinic_slot.slot_name_id,dm_in_clinic_slot.clinic_id,dm_in_clinic_slot.doctor_id,
+        dm_in_clinic_slot_dates.in_clinic_max_slot_position_datewise,
+        dm_slot_name.slot_name,dm_in_clinic_slot_dates.in_clinic_slot_start_time,
+        dm_in_clinic_slot_dates.in_clinic_slot_end_time
+        from dm_in_clinic_slot_dates left join dm_in_clinic_slot on
+         dm_in_clinic_slot.in_clinic_slot_id=dm_in_clinic_slot_dates.in_clinic_slot_id
+         join dm_slot_name on dm_in_clinic_slot.slot_name_id=dm_slot_name.slot_name_id
+
+
+        where dm_in_clinic_slot_dates.in_clinic_slot_dates='$inClinicSlotBookingDate' and
+        dm_in_clinic_slot_dates.in_clinic_slot_dates_is_active=1 and
+        dm_in_clinic_slot.in_clinic_slot_id=$inClinicSlotId
+        ");
+        return $getQuery;
+
+    }
+
+    // to get the booking slot position
+    public function getInClinicBookingSlotPosition($inClinicSlotId,
+        $inClinicBookingDate, $slotNameId, $clinicId, $doctorId, $inClinicMaxSlotPositionDateWise) {
+        $inClinicBookingDate = date("Y-m-d", strtotime($inClinicBookingDate));
+        $query="select in_clinic_booking_slot_position_master_position,in_clinic_booking_date,
+        dm_in_clinic_booking.in_clinic_slot_id
+        , ifnull(in_clinic_booking_slot_position,  'Free') as in_clinic_booking_slot_position ,
+        (select distinct dm_in_clinic_slot_dates.in_clinic_slot_start_time
+        from dm_in_clinic_slot_dates where
+         dm_in_clinic_slot_dates.in_clinic_slot_id=$inClinicSlotId
+         and dm_in_clinic_slot_dates.in_clinic_slot_dates='$inClinicBookingDate'
+         )
+        as in_clinic_slot_start_time,
+        (select distinct dm_in_clinic_slot_dates.in_clinic_slot_end_time
+        from dm_in_clinic_slot_dates
+        where dm_in_clinic_slot_dates.in_clinic_slot_id=$inClinicSlotId
+        and dm_in_clinic_slot_dates.in_clinic_slot_dates='$inClinicBookingDate'
+        )
+        as in_clinic_slot_end_time,
+         (select distinct dm_in_clinic_slot_dates.is_booking_available
+        from dm_in_clinic_slot_dates
+        where dm_in_clinic_slot_dates.in_clinic_slot_id=$inClinicSlotId
+        and dm_in_clinic_slot_dates.in_clinic_slot_dates='$inClinicBookingDate'
+        )
+        as is_booking_available
+        from dm_in_clinic_booking_slot_position_master
+
+        left join dm_in_clinic_booking on
+         dm_in_clinic_booking_slot_position_master.in_clinic_booking_slot_position_master_id
+         = dm_in_clinic_booking.in_clinic_booking_slot_position
+
+         and dm_in_clinic_booking.in_clinic_booking_date='$inClinicBookingDate'
+         and dm_in_clinic_booking.slot_name_id=$slotNameId and
+         clinic_id=$clinicId and doctor_id=$doctorId and
+         dm_in_clinic_booking.in_clinic_slot_id=$inClinicSlotId
+
+         and dm_in_clinic_booking.in_clinic_booking_is_active != 2
+         group by dm_in_clinic_booking_slot_position_master.in_clinic_booking_slot_position_master_id
+         order by in_clinic_booking_slot_position_master_position
+         limit $inClinicMaxSlotPositionDateWise
+         ";
+
+        $getQuery = DB::select($query);
+        return $getQuery;
+
+    }
+
+    //update update family member
+    public function saveUpdateFamilyMember($familyId, $userId, $firstName, $lastName, $mobileNumber,
+        $profileImage, $email, $dob, $gender, $bloodGroup, $maritalStatus,
+        $height, $weight, $address, $relation
+    ) {
+        try {
+
+            DB::beginTransaction();
+
+            $currentDate = null;
+            $dateDiff = null;
+            if ($dob != null || !isEmpty($dob)) {
+                $dob = new DateTime($dob);
+                $currentDate = new DateTime();
+                $dateDiff = $dob->diff($currentDate);
+            }
+            if ($familyId == "0") {
+                // insert
+                DB::table('dm_family_member')->insertGetId(
+                    [
+                        'user_id' => $userId,
+                        'family_member_first_name' => ucfirst($firstName),
+                        'family_member_last_name' => ucfirst($lastName),
+                        'family_member_full_name' => ucfirst($firstName) . " " . ucfirst($lastName),
+                        'family_member_mobile_number' => $mobileNumber,
+                        'family_member_profile_image' => $profileImage,
+                        'family_member_email' => $email,
+                        'family_member_dob' => $dob,
+                        'family_member_age' => $dateDiff != null ? $dateDiff->y . " years, " . $dateDiff->m . " months, " . $dateDiff->d . " days" : null,
+                        'family_member_gender' => $gender,
+                        'family_member_blood_group' => $bloodGroup,
+                        'family_member_marital_status' => $maritalStatus,
+                        'family_member_height' => $height,
+                        'family_member_weight' => $weight,
+                        'family_member_address' => $address,
+                        'family_member_relation' => $relation,
+                    ]
+                );
+            } else {
+                // update
+
+                DB::table('dm_family_member')
+                    ->where('family_member_id', $familyId)
+                    ->update([
+                        'family_member_first_name' => ucfirst($firstName),
+                        'family_member_last_name' => ucfirst($lastName),
+                        'family_member_full_name' => ucfirst($firstName) . " " . ucfirst($lastName),
+                        'family_member_mobile_number' => $mobileNumber,
+                        'family_member_profile_image' => $profileImage,
+                        'family_member_email' => $email,
+                        'family_member_dob' => $dob,
+                        'family_member_age' => $dateDiff != null ? $dateDiff->y . " years, " . $dateDiff->m . " months, " . $dateDiff->d . " days" : null,
+                        'family_member_gender' => $gender,
+                        'family_member_blood_group' => $bloodGroup,
+                        'family_member_marital_status' => $maritalStatus,
+                        'family_member_height' => $height,
+                        'family_member_weight' => $weight,
+                        'family_member_address' => $address,
+                        'family_member_relation' => $relation,
+
+                    ]);
+            }
+
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = $ex->getMessage();
+        }
+
+        return $resultData;
+    }
+
+    // to get the doctor other details
+    public function getFamilyMemberList($userId)
+    {
+        $getQuery = DB::table('dm_family_member')
+
+            ->where('user_id', '=', $userId)
+
+            ->where('family_member_is_active', '=', 1)
+
+            ->select([
+                'is_self',
+                'family_member_id',
+                'user_id',
+                'family_member_first_name',
+                'family_member_last_name',
+                'family_member_full_name',
+                'family_member_mobile_number',
+                'family_member_profile_image',
+                'family_member_email',
+                'family_member_dob',
+                'family_member_gender',
+                'family_member_blood_group',
+                'family_member_marital_status',
+                'family_member_height',
+                'family_member_weight',
+                'family_member_address',
+            ])
+            ->get();
+        $getResult = $getQuery->toArray();
+        return $getResult;
+    }
+
+    //save inclinic booking
+    public function saveInClinicBooking($inClinicSlotId, $inClinicSlotDateId,
+        $slotNameId, $clinicId, $doctorId, $bookingMadeByRoleId, $bookingMadeByUserId,
+        $bookingMadeForFamilyId, $isBookingDoneForSelf, $bookingSlotPosition,
+        $bookingDate, $inClinicPrice, $paymentMethodId,
+        $rewardId, $rewardTransactionId, $offerId, $paidAmount, $offerPrice, $inClinicServiceFee,
+        $inClinicCancellationDays, $specialization_disease_mapping_id,
+        $disease_name
+    ) {
+        try {
+
+            DB::beginTransaction();
+
+            $getClinicQuery = DB::table('dm_clinic')->where('clinic_is_active', 1)
+                ->where('clinic_id', $clinicId)
+                ->get();
+            $getClinicQueryResult = $getClinicQuery->toArray();
+
+            $getDoctorQuery = DB::table('dm_doctor')->where('doctor_is_active', 1)
+                ->where('doctor_id', $doctorId)
+                ->get();
+            $getDoctorQueryResult = $getDoctorQuery->toArray();
+
+            $getUserQuery = DB::table('dm_family_member')->where('family_member_is_active', 1)
+                ->where('family_member_id', $bookingMadeForFamilyId)
+                ->get();
+            $getUserQueryResult = $getUserQuery->toArray();
+
+            $bookingCodePrefix = "IA" . date("ym");
+            $bookingCode = IdGenerator::generate(['table' => 'dm_in_clinic_booking', 'field' => 'in_clinic_booking_code', 'length' => 12, 'prefix' => $bookingCodePrefix,
+                'reset_on_prefix_change' => true]);
+
+            $transactionCodePrefix = "IT" . date("ym");
+            $transctionCode = IdGenerator::generate(['table' => 'dm_in_clinic_booking_transaction', 'field' => 'in_clinic_transaction_code', 'length' => 12, 'prefix' => $transactionCodePrefix,
+                'reset_on_prefix_change' => true]);
+
+            $bookingDate = date("Y-m-d", strtotime($bookingDate));
+            $getGstQuery = DB::table('dm_gst')->where('gst_applicable_for', 1)
+                ->where('gst_is_active', 1)
+                ->whereRaw('now() between gst_valid_start_date and gst_valid_end_date')
+                ->get();
+            $getGstResult = $getGstQuery->toArray();
+
+            $getBookingQuery = DB::table('dm_in_clinic_booking')->where('in_clinic_slot_dates_id', $inClinicSlotDateId)
+                ->where('in_clinic_booking_slot_position', $bookingSlotPosition)
+                ->where('slot_name_id', $slotNameId)
+                ->where('in_clinic_booking_is_active', 1)
+                ->where('clinic_id', $clinicId)
+                ->where('doctor_id', $doctorId)
+
+                ->get();
+            if ($getBookingQuery->count() == 0) {
+
+                $getFamilyQuery = DB::table('dm_in_clinic_booking')->where('in_clinic_slot_dates_id', $inClinicSlotDateId)
+                    ->where('in_clinic_booking_made_for_family_id', $bookingMadeForFamilyId)
+                    ->where('in_clinic_booking_is_active', 1)
+                    ->where('clinic_id', $clinicId)
+                    ->where('doctor_id', $doctorId)
+                    ->where('in_clinic_booking_date',$bookingDate)
+                    ->get();
+
+                 if ($getFamilyQuery->count() == 0) {
+                $insertId = DB::table('dm_in_clinic_booking')->insertGetId(
+                    [
+                        'in_clinic_slot_id' => $inClinicSlotId,
+                        'in_clinic_slot_dates_id' => $inClinicSlotDateId,
+                        'slot_name_id' => $slotNameId,
+                        'clinic_id' => $clinicId,
+                        'doctor_id' => $doctorId,
+                        'in_clinic_booking_made_by_role_id' => $bookingMadeByRoleId,
+                        'in_clinic_booking_made_by_user_id' => $bookingMadeByUserId,
+                        'in_clinic_booking_made_for_family_id' => $bookingMadeForFamilyId,
+                        'in_clinic_is_booking_done_for_self' => $isBookingDoneForSelf,
+                        'in_clinic_booking_slot_position' => $bookingSlotPosition,
+                        'in_clinic_booking_current_slot_position' => $bookingSlotPosition,
+                        'in_clinic_booking_date' => $bookingDate,
+                        'in_clinic_price' => $inClinicPrice,
+                        'in_clinic_service_fee' => $inClinicServiceFee,
+                        'in_clinic_booking_code' => $bookingCode,
+                        'in_clinic_booking_cancellation_days' => $inClinicCancellationDays,
+                        'in_clinic_booking_appointment_time' => DB::raw("DATE_ADD((select in_clinic_slot_start_time from dm_in_clinic_slot_dates where in_clinic_slot_dates_id=$inClinicSlotDateId) ,
+INTERVAL ((select in_clinic_slot_interval from dm_in_clinic_slot where in_clinic_slot_id=$inClinicSlotId) * ($bookingSlotPosition-1))  minute)"),
+
+                        'in_clinic_booking_reporting_time' => DB::raw("date_add(DATE_ADD((select in_clinic_slot_start_time from dm_in_clinic_slot_dates where in_clinic_slot_dates_id=$inClinicSlotDateId) ,
+INTERVAL ((select in_clinic_slot_interval from dm_in_clinic_slot where in_clinic_slot_id=$inClinicSlotId) * ($bookingSlotPosition-1))  minute), INTERVAL -5 minute)"),
+
+                        'specialization_disease_mapping_id' => $specialization_disease_mapping_id,
+                        'disease_name' => $disease_name,
+
+                    ]
+                );
+
+                DB::table('dm_in_clinic_booking_transaction')->insertGetId(
+                    [
+                        'in_clinic_booking_id' => $insertId,
+                        'in_clinic_slot_id' => $inClinicSlotId,
+                        'in_clinic_slot_dates_id' => $inClinicSlotDateId,
+                        'slot_name_id' => $slotNameId,
+                        'clinic_id' => $clinicId,
+                        'doctor_id' => $doctorId,
+                        'payment_method_id' => $paymentMethodId,
+                        'reward_id' => $rewardId,
+                        'reward_transaction_id' => $rewardTransactionId,
+                        'offer_id' => $offerId,
+                        'in_clinic_booking_made_by_role_id' => $bookingMadeByRoleId,
+                        'in_clinic_booking_made_by_user_id' => $bookingMadeByUserId,
+                        'in_clinic_booking_made_for_family_id' => $bookingMadeForFamilyId,
+                        'in_clinic_is_booking_done_for_self' => $isBookingDoneForSelf,
+                        'in_clinic_booking_slot_position' => $bookingSlotPosition,
+                        'in_clinic_booking_date' => $bookingDate,
+                        'in_clinic_price' => $inClinicPrice,
+                        'in_clinic_service_fee' => $inClinicServiceFee,
+                        'in_clinic_booking_paid_amount' => $paidAmount,
+                        'in_clinic_booking_offer_price' => $inClinicServiceFee,
+                        'in_clinic_booking_gst_price' => $paidAmount * $getGstResult[0]->gst_percentage / 100,
+                        'in_clinic_booking_cgst_price' => $paidAmount * $getGstResult[0]->gst_cgst_percentage / 100,
+                        'in_clinic_booking_sgst_price' => $paidAmount * $getGstResult[0]->gst_sgst_percentage / 100,
+                        'in_clinic_booking_igst_price' => $paidAmount * $getGstResult[0]->gst_igst_percentage / 100,
+                        'in_clinic_transaction_code' => $transctionCode,
+
+                    ]
+                );
+                $smsBookingTextForCustomer = "Dear " . $getUserQueryResult[0]->family_member_full_name . " your booking has been confirmed for Dr.  " . $getDoctorQueryResult[0]->doctor_full_name . " dated " . $bookingDate . " with booking number " . $bookingSlotPosition . " . Please contact " . $getClinicQueryResult[0]->clinic_full_name;
+                DB::table('dm_sms_schedule_details')->insertGetId(
+                    [
+                        'mobile_number' => $getUserQueryResult[0]->family_member_mobile_number,
+                        'sms_text' => $smsBookingTextForCustomer,
+                        'sms_type' => 'Appointment Booking',
+
+                    ]
+                );
+                $smsBookingTextForClinic = "Booking has made by " . $getUserQueryResult[0]->family_member_full_name . " for Dr.  " . $getDoctorQueryResult[0]->doctor_full_name . " dated " . $bookingDate . "";
+                DB::table('dm_sms_schedule_details')->insertGetId(
+                    [
+                        'mobile_number' => $getClinicQueryResult[0]->clinic_mobile_number,
+                        'sms_text' => $smsBookingTextForClinic,
+                        'sms_type' => 'Appointment Booking',
+
+                    ]
+                );
+
+                DB::commit();
+                $resultData['result'] = "success";
+                $resultData['bookingCode'] = $bookingCode;
+                $resultData['bookingId'] = $insertId;
+                $resultData['bookingType'] = 0;
+
+                } else {
+                $resultData['result'] = "bookedself";
+                }
+
+            } else {
+                $resultData['result'] = "booked";
+            }
+
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+    }
+
+    public function sendBookingSMSForCustomer($clinicName, $clinicMobileNumber, $doctorName,
+        $customerMobileNumber,
+        $bookingDate, $customerName) {
+        try
+        {
+            $smstext = rawurlencode("Dear " . $customerName . " your booking has been confirmed for Dr.  " . $doctorName . " dated " . $bookingDate . " . Please contact " . $clinicName);
+            $ch = curl_init("https://www.smsgatewayhub.com/api/mt/SendSMS?APIKey=V6dw6TBazEGoT3a3exO8UA&senderid=ODILAS&channel=2&DCS=0&flashsms=0&number=$customerMobileNumber&text=$smstext&route=1");
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, "");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 2);
+            $result = curl_exec($ch);
+            if (curl_error($ch)) {
+                $result = curl_errno($ch);
+            }
+        } catch (Exception $ex) {
+            $result = $ex->getMessage();
+        }
+
+        return response()->json($result);
+    }
+
+    public function sendBookingSMSForClinic($clinicName, $clinicMobileNumber, $doctorName,
+        $customerMobileNumber,
+        $bookingDate, $customerName) {
+        try
+        {
+            $smstext = rawurlencode("Booking has made by " . $customerName . " for Dr.  " . $doctorName . " dated " . $bookingDate . "");
+            $ch = curl_init("https://www.smsgatewayhub.com/api/mt/SendSMS?APIKey=V6dw6TBazEGoT3a3exO8UA&senderid=ODILAS&channel=2&DCS=0&flashsms=0&number=$clinicMobileNumber&text=$smstext&route=1");
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, "");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 2);
+            $result = curl_exec($ch);
+            if (curl_error($ch)) {
+                $result = curl_errno($ch);
+            }
+        } catch (Exception $ex) {
+            $result = $ex->getMessage();
+        }
+
+        return response()->json($result);
+    }
+
+    public function getInClinicBookingList($bookigDoneByUserId,
+        $bookigStatus, $pageNumber, $itemToLoad, $searchText) {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        if($searchText!='' || $searchText!=0)
+        {
+            $searchText=$searchText;
+        }
+        else
+        {
+            $searchText='';
+        }
+        
+        $getFamilyQueryList = DB::table('dm_family_member')
+            ->select([
+                DB::raw("(SELECT group_concat(family_member_id)
+                FROM dm_family_member
+                 where family_member_is_active=1 and user_id=$bookigDoneByUserId
+        ) as family_member_id"),
+
+            ])
+            ->where('user_id', '=', $bookigDoneByUserId)->get();
+
+        $getQuery = DB::table('dm_in_clinic_booking')
+            ->leftJoin('dm_in_clinic_slot', 'dm_in_clinic_slot.in_clinic_slot_id', '=', 'dm_in_clinic_booking.in_clinic_slot_id')
+            ->leftJoin('dm_in_clinic_slot_dates', 'dm_in_clinic_slot_dates.in_clinic_slot_dates_id', '=', 'dm_in_clinic_booking.in_clinic_slot_dates_id')
+            ->leftJoin('dm_slot_name', 'dm_slot_name.slot_name_id', '=', 'dm_in_clinic_booking.slot_name_id')
+            ->leftJoin('dm_clinic', 'dm_clinic.clinic_id', '=', 'dm_in_clinic_booking.clinic_id')
+            ->leftJoin('dm_doctor', 'dm_doctor.doctor_id', '=', 'dm_in_clinic_booking.doctor_id')
+            ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+            ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+
+            ->leftJoin('dm_family_member', 'dm_family_member.family_member_id', '=', 'dm_in_clinic_booking.in_clinic_booking_made_for_family_id')
+            ->leftJoin('dm_clinic_image', 'dm_clinic_image.clinic_id', '=', 'dm_clinic.clinic_id')
+
+            ->whereIn('dm_in_clinic_booking.in_clinic_booking_made_for_family_id', explode(',', $getFamilyQueryList[0]->family_member_id))
+            ->where('dm_in_clinic_booking.in_clinic_booking_is_active', '=', $bookigStatus)
+            ->where('dm_clinic_image.clinic_image_type', '=', 1)
+            ->where('dm_specialization.specialization_type', '=', 1)
+            ->where('dm_doctor_education.education_type', '=', 1)
+            ->select([
+                'dm_clinic.clinic_id',
+                'dm_clinic.clinic_first_name',
+                'dm_clinic.clinic_last_name',
+                'dm_clinic.clinic_full_name',
+                'dm_clinic.clinic_mobile_number',
+                'dm_clinic.clinic_profile_image',
+                'dm_clinic_image.clinic_image',
+                'dm_clinic.clinic_address',
+
+                'dm_doctor.doctor_id',
+                'dm_doctor.doctor_first_name',
+                'dm_doctor.doctor_last_name',
+                'dm_doctor.doctor_full_name',
+                'dm_doctor.doctor_mobile_number',
+                'dm_doctor.doctor_profile_image',
+                'dm_specialization.specialization_name',
+                'dm_doctor.doctor_overall_experience',
+                'dm_doctor_education.education_name',
+                     'dm_doctor.user_id as doctor_user_id',
+                           'dm_doctor.doctor_device_token',
+
+                'dm_family_member.family_member_id',
+                    'dm_family_member.user_id as family_user_id',
+                        'dm_family_member.family_member_token as patient_device_token',
+                'dm_family_member.family_member_first_name',
+                'dm_family_member.family_member_last_name',
+                'dm_family_member.family_member_full_name',
+                'dm_family_member.family_member_mobile_number',
+                'dm_family_member.family_member_profile_image',
+                'dm_family_member.is_self',
+
+                'dm_in_clinic_slot.in_clinic_slot_id',
+
+                'dm_in_clinic_slot_dates.in_clinic_slot_dates_id',
+
+                'dm_slot_name.slot_name_id',
+                'dm_slot_name.slot_name',
+
+                'dm_in_clinic_booking.in_clinic_booking_id',
+                'dm_in_clinic_booking.in_clinic_booking_code',
+                'dm_in_clinic_booking.in_clinic_booking_made_by_role_id',
+                'dm_in_clinic_booking.in_clinic_booking_made_by_user_id',
+                'dm_in_clinic_booking.in_clinic_booking_made_for_family_id',
+                'dm_in_clinic_booking.in_clinic_is_booking_done_for_self',
+                'dm_in_clinic_booking.in_clinic_booking_slot_position',
+                'dm_in_clinic_booking.in_clinic_booking_current_slot_position',
+                'dm_in_clinic_booking.in_clinic_price',
+                'dm_in_clinic_booking.in_clinic_service_fee',
+                'dm_in_clinic_booking.in_clinic_booking_is_active',
+                'dm_in_clinic_booking.in_clinic_booking_cancellation_days',
+                'dm_in_clinic_booking.in_clinic_booking_reporting_time',
+                'dm_in_clinic_booking.in_clinic_booking_appointment_time',
+                DB::raw('timediff(dm_in_clinic_booking.in_clinic_booking_appointment_time,now()) as "waiting_time"'),
+
+                DB::raw('if(DATE_sub(DATE_FORMAT(dm_in_clinic_booking.in_clinic_booking_date,"%Y-%m-%d"),
+INTERVAL dm_in_clinic_booking.in_clinic_booking_cancellation_days DAY)>=date_format(now(),"%Y-%m-%d"),"1","1") as "booking_cancel_date_check"'),
+
+                DB::raw('DATE_FORMAT(dm_in_clinic_booking.in_clinic_booking_date, "%d-%m-%Y") as in_clinic_booking_date', "%d-%m-%Y"),
+                  DB::raw('if(DATE_ADD(date_format(dm_in_clinic_booking.in_clinic_booking_updated_date,"%Y-%m-%d"), interval 7 day)<=date_format(now(),"%Y-%m-%d"),"0","1") as "is_chat_window_visible"'),
+
+            ]);
+            
+            if($searchText!='')
+            {
+                                    
+                $getQuery = $getQuery->where(function ($getQuery) use ($searchText) {
+                    $getQuery->where(DB::raw('DATE_FORMAT(dm_in_clinic_booking.in_clinic_booking_date,"%d-%m-%Y")'), '=', date('d-m-Y',strtotime(str_replace("/", "-", $searchText))))
+                        ->orwhere('dm_in_clinic_booking.in_clinic_booking_slot_position', 'LIKE', '%'.$searchText.'%')->orwhere('dm_family_member.family_member_mobile_number', 'LIKE', '%'.$searchText.'%')
+                        ->orwhere('dm_family_member.family_member_mobile_number', 'LIKE', '%'.$searchText.'%');
+
+                    });
+                 
+            }
+            
+           if($bookigStatus==1)
+            {
+                $getQuery = $getQuery->where('dm_in_clinic_booking.in_clinic_booking_date', '>=', date("Y-m-d"));
+            }
+            
+             $getQuery = $getQuery->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->orderBy('dm_in_clinic_booking.in_clinic_booking_date', 'desc')
+            ->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+    //cancel in clinic booking
+    public function cancelInClinicBooking($in_clinic_booking_id, $familyMobileNumber,
+        $doctorName, $clinicName, $bookingDate, $inClinicSlotDatesId, $inClinicSlotId) {
+        try {
+
+            DB::beginTransaction();
+            $getQuery = DB::table('dm_in_clinic_slot_dates')
+                ->where('in_clinic_slot_dates_id', $inClinicSlotDatesId)
+                ->where('in_clinic_slot_dates_is_active', 1)
+                ->get();
+            if ($getQuery->count() > 0) {
+                $getResult = $getQuery->toArray();
+                if ($getResult[0]->in_clinic_doctor_present == "1") {
+                    // update the time and cancel booking
+                    DB::table('dm_in_clinic_booking')
+                        ->where('in_clinic_booking_id', $in_clinic_booking_id)
+                        ->update([
+                            'in_clinic_booking_is_active' => 2, //rejected
+                            'in_clinic_booking_updated_date' => now(),
+                        ]);
+
+                    DB::table('dm_in_clinic_booking_transaction')
+                        ->where('in_clinic_booking_id', $in_clinic_booking_id)
+                        ->update([
+                            'in_clinic_booking_transaction_is_active' => 2, //rejected
+                            'in_clinic_booking_transaction_update_date' => now(),
+
+                        ]);
+
+                    DB::unprepared("DROP TEMPORARY TABLE IF EXISTS slot_temp;CREATE TEMPORARY TABLE slot_temp
+AS
+(SELECT  @a:=@a+1 rank,
+        in_clinic_booking_id
+FROM    dm_in_clinic_booking,
+        (SELECT @a:= 0) AS a
+
+        where in_clinic_slot_dates_id=$inClinicSlotDatesId and in_clinic_booking_is_active=1
+        order by in_clinic_booking_current_slot_position asc);
+
+UPDATE dm_in_clinic_booking a, slot_temp b
+SET a.in_clinic_booking_current_slot_position = b.rank,
+
+
+in_clinic_booking_appointment_time =  DATE_ADD(current_time() ,
+INTERVAL ((select in_clinic_slot_interval from dm_in_clinic_slot where in_clinic_slot_id=$inClinicSlotId) * (b.rank-1))  minute) ,
+
+in_clinic_booking_reporting_time = date_add( DATE_ADD(current_time() ,
+INTERVAL ((select in_clinic_slot_interval from dm_in_clinic_slot where in_clinic_slot_id=$inClinicSlotId) * (b.rank-1))  minute), INTERVAL -5 minute)
+
+
+WHERE a.in_clinic_booking_id = b.in_clinic_booking_id
+
+");
+
+                } else {
+                    // only cancel the booking
+                    DB::table('dm_in_clinic_booking')
+                        ->where('in_clinic_booking_id', $in_clinic_booking_id)
+                        ->update([
+                            'in_clinic_booking_is_active' => 2, //rejected
+                            'in_clinic_booking_updated_date' => now(),
+                        ]);
+
+                    DB::table('dm_in_clinic_booking_transaction')
+                        ->where('in_clinic_booking_id', $in_clinic_booking_id)
+                        ->update([
+                            'in_clinic_booking_transaction_is_active' => 2, //rejected
+                            'in_clinic_booking_transaction_update_date' => now(),
+
+                        ]);
+
+                }
+            }
+
+            $smsCancelBooking = "Your booking has been cancelled for Dr.  " . $doctorName . " dated " . $bookingDate . " . Please contact " . $clinicName;
+            DB::table('dm_sms_schedule_details')->insertGetId(
+                [
+                    'mobile_number' => $familyMobileNumber,
+                    'sms_text' => $smsCancelBooking,
+                    'sms_type' => 'Cancel Booking',
+
+                ]
+            );
+
+            DB::commit();
+
+            $resultData['result'] = "success";
+            // $this->cancelBookingSMS($familyMobileNumber, $doctorName, $clinicName, $bookingDate);
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+    }
+
+    // To get privacy policy
+    public function getPrivacyPolicy($legalId)
+    {
+
+        $getQuery = DB::table('dm_legal')
+            ->where('legal_id', '=', $legalId)
+            ->where('legal_is_active', '=', 1)
+
+            ->get();
+        $getResult = $getQuery->toArray();
+        return $getResult;
+    }
+
+    //clinic
+
+    // Update profile image
+    public function updateClinicProfileImage($clinicId, $fileName)
+    {
+        try {
+            DB::beginTransaction();
+            DB::table('dm_clinic')
+                ->where('clinic_id', $clinicId)
+                ->update(['clinic_profile_image' => $fileName]);
+
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+    // Remove profile image
+    public function removeClinicProfileImage($clinicId, $fileName)
+    {
+        try {
+            DB::beginTransaction();
+            DB::table('dm_clinic')
+                ->where('clinic_id', $clinicId)
+                ->update(['clinic_profile_image' => null]);
+
+            if (file_exists(storage_path('app/public/user_profile_pic/' . $fileName))) {
+                unlink(storage_path('app/public/user_profile_pic/' . $fileName));
+            }
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+
+    // update first name
+    public function updateClinicFirstName($clinicId, $firstName, $fullName)
+    {
+
+        try {
+            DB::beginTransaction();
+            DB::table('dm_clinic')
+                ->where('clinic_id', $clinicId)
+                ->update(['clinic_first_name' => ucfirst($firstName), 'clinic_full_name' => $fullName]);
+
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+    //update last name
+    public function updateClinicLastName($clinicId, $lastName, $fullName)
+    {
+
+        try {
+            DB::beginTransaction();
+            DB::table('dm_clinic')
+                ->where('clinic_id', $clinicId)
+                ->update(['clinic_last_name' => ucfirst($lastName), 'clinic_full_name' => $fullName]);
+
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+
+    // update mobile number
+    public function updateClinicMobileNumber($clinicId, $userId, $mobileNumber)
+    {
+
+        $getQuery = DB::table('dm_user')->
+            where('user_mobile', $mobileNumber)
+            ->where('user_id', '!=', $userId)
+            ->get();
+        if ($getQuery->count() == 0) {
+            try {
+
+                DB::beginTransaction();
+                DB::table('dm_user')
+                    ->where('user_id', $userId)
+
+                    ->update(['user_mobile' => $mobileNumber]);
+                DB::table('dm_clinic')
+                    ->where('clinic_id', $clinicId)
+
+                    ->update(['clinic_mobile_number' => $mobileNumber]);
+
+                DB::commit();
+                $resultData['result'] = "success";
+            } catch (Exception $ex) {
+                DB::rollback();
+            }
+        } else {
+            $resultData['result'] = "exists";
+        }
+        return $resultData;
+    }
+
+    //save inclinic booking by clinic
+    public function saveInClinicBookingByClinic($familyId, $patientFirstName, $patientLastName,
+        $patientMobileNumber, $isExistingPatient, $inClinicSlotId, $inClinicSlotDateId,
+        $slotNameId, $clinicId, $doctorId, $bookingMadeByRoleId, $bookingMadeByUserId,
+        $isBookingDoneForSelf, $bookingSlotPosition,
+        $bookingDate, $inClinicPrice, $paymentMethodId,
+        $rewardId, $rewardTransactionId, $offerId, $paidAmount, $offerPrice, $inClinicServiceFee,
+        $inClinicCancellationDays, $specialization_disease_mapping_id, $disease_name, $source, $old_new, $type, $location
+    ) {
+       
+        try {
+
+            DB::beginTransaction();
+            $getClinicQuery = DB::table('dm_clinic')->where('clinic_is_active', 1)
+                ->where('clinic_id', $clinicId)
+                ->get();
+            $getClinicQueryResult = $getClinicQuery->toArray();
+
+            $getDoctorQuery = DB::table('dm_doctor')->where('doctor_is_active', 1)
+                ->where('doctor_id', $doctorId)
+                ->get();
+            $getDoctorQueryResult = $getDoctorQuery->toArray();
+            if ($isExistingPatient == "1") {
+           
+                $getUserQuery = DB::table('dm_family_member')->where('family_member_is_active', 1)
+                    ->where('family_member_id', $familyId)
+                    ->get();
+                $getUserQueryResult = $getUserQuery->toArray();
+
+                $getRoleQuery = DB::table('dm_user')
+                    ->where('dm_user.user_mobile', '=', $patientMobileNumber)
+                    ->get();
+                $getRoleResult = $getRoleQuery->toArray();
+                if ($getRoleResult[0]->role_id == "1") {
+
+                    $bookingCodePrefix = "IA" . date("ym");
+                    $bookingCode = IdGenerator::generate(['table' => 'dm_in_clinic_booking', 'field' => 'in_clinic_booking_code', 'length' => 12, 'prefix' => $bookingCodePrefix,
+                        'reset_on_prefix_change' => true]);
+
+                    $transactionCodePrefix = "IT" . date("ym");
+                    $transctionCode = IdGenerator::generate(['table' => 'dm_in_clinic_booking_transaction', 'field' => 'in_clinic_transaction_code', 'length' => 12, 'prefix' => $transactionCodePrefix,
+                        'reset_on_prefix_change' => true]);
+
+                    $bookingDate = date("Y-m-d", strtotime($bookingDate));
+                    $getGstQuery = DB::table('dm_gst')->where('gst_applicable_for', 1)
+                        ->where('gst_is_active', 1)
+                        ->whereRaw('now() between gst_valid_start_date and gst_valid_end_date')
+                        ->get();
+                    $getGstResult = $getGstQuery->toArray();
+
+                    $getBookingQuery = DB::table('dm_in_clinic_booking')
+                        ->where('in_clinic_slot_dates_id', $inClinicSlotDateId)
+                        ->where('in_clinic_booking_slot_position', $bookingSlotPosition)
+                        ->where('slot_name_id', $slotNameId)
+                        ->where('in_clinic_booking_is_active', 1)
+                        ->where('clinic_id', $clinicId)
+                        ->where('doctor_id', $doctorId)
+
+                        ->get();
+                    if ($getBookingQuery->count() == 0) {
+
+                        $getFamilyQuery = DB::table('dm_in_clinic_booking')
+                            ->where('in_clinic_slot_dates_id', $inClinicSlotDateId)
+                            ->where('in_clinic_booking_made_for_family_id', $familyId)
+                            ->where('in_clinic_booking_is_active', 1)
+                            ->where('clinic_id', $clinicId)
+                            ->where('doctor_id', $doctorId)
+                            ->where('in_clinic_booking_date',$bookingDate)
+                            ->get();
+
+                         if ($getFamilyQuery->count() == 0) {
+                        $insertId = DB::table('dm_in_clinic_booking')->insertGetId(
+                            [
+                                'in_clinic_slot_id' => $inClinicSlotId,
+                                'in_clinic_slot_dates_id' => $inClinicSlotDateId,
+                                'slot_name_id' => $slotNameId,
+                                'clinic_id' => $clinicId,
+                                'doctor_id' => $doctorId,
+                                'in_clinic_booking_made_by_role_id' => $bookingMadeByRoleId,
+                                'in_clinic_booking_made_by_user_id' => $bookingMadeByUserId,
+                                'in_clinic_booking_made_for_family_id' => $familyId,
+                                'in_clinic_is_booking_done_for_self' => $isBookingDoneForSelf,
+                                'in_clinic_booking_slot_position' => $bookingSlotPosition,
+                                'in_clinic_booking_current_slot_position' => $bookingSlotPosition,
+                                'in_clinic_booking_date' => $bookingDate,
+                                'in_clinic_price' => $inClinicPrice,
+                                'in_clinic_service_fee' => $inClinicServiceFee,
+                                'in_clinic_booking_code' => $bookingCode,
+                                'in_clinic_booking_cancellation_days' => $inClinicCancellationDays,
+                                'specialization_disease_mapping_id' => $specialization_disease_mapping_id,
+                                'disease_name' => $disease_name,
+								'source' => $source,
+								'old_new' => $old_new,
+                                'type' => $type,
+                                'location' => $location,
+                                'in_clinic_booking_appointment_time' => DB::raw("DATE_ADD((select in_clinic_slot_start_time from dm_in_clinic_slot_dates where in_clinic_slot_dates_id=$inClinicSlotDateId) ,
+INTERVAL ((select in_clinic_slot_interval from dm_in_clinic_slot where in_clinic_slot_id=$inClinicSlotId) * ($bookingSlotPosition-1))  minute)"),
+
+                                'in_clinic_booking_reporting_time' => DB::raw("date_add(DATE_ADD((select in_clinic_slot_start_time from dm_in_clinic_slot_dates where in_clinic_slot_dates_id=$inClinicSlotDateId) ,
+INTERVAL ((select in_clinic_slot_interval from dm_in_clinic_slot where in_clinic_slot_id=$inClinicSlotId) * ($bookingSlotPosition-1))  minute), INTERVAL -5 minute)"),
+                                
+
+                            ]
+                        );
+
+                        DB::table('dm_in_clinic_booking_transaction')->insertGetId(
+                            [
+                                'in_clinic_booking_id' => $insertId,
+                                'in_clinic_slot_id' => $inClinicSlotId,
+                                'in_clinic_slot_dates_id' => $inClinicSlotDateId,
+                                'slot_name_id' => $slotNameId,
+                                'clinic_id' => $clinicId,
+                                'doctor_id' => $doctorId,
+                                'payment_method_id' => $paymentMethodId,
+                                'reward_id' => $rewardId,
+                                'reward_transaction_id' => $rewardTransactionId,
+                                'offer_id' => $offerId,
+                                'in_clinic_booking_made_by_role_id' => $bookingMadeByRoleId,
+                                'in_clinic_booking_made_by_user_id' => $bookingMadeByUserId,
+                                'in_clinic_booking_made_for_family_id' => $familyId,
+                                'in_clinic_is_booking_done_for_self' => $isBookingDoneForSelf,
+                                'in_clinic_booking_slot_position' => $bookingSlotPosition,
+                                'in_clinic_booking_date' => $bookingDate,
+                                'in_clinic_price' => $inClinicPrice,
+                                'in_clinic_service_fee' => $inClinicServiceFee,
+                                'in_clinic_booking_paid_amount' => $paidAmount,
+                                'in_clinic_booking_offer_price' => $inClinicServiceFee,
+                                'in_clinic_booking_gst_price' => $paidAmount * $getGstResult[0]->gst_percentage / 100,
+                                'in_clinic_booking_cgst_price' => $paidAmount * $getGstResult[0]->gst_cgst_percentage / 100,
+                                'in_clinic_booking_sgst_price' => $paidAmount * $getGstResult[0]->gst_sgst_percentage / 100,
+                                'in_clinic_booking_igst_price' => $paidAmount * $getGstResult[0]->gst_igst_percentage / 100,
+                                'in_clinic_transaction_code' => $transctionCode,
+
+                            ]
+                        );
+                        $smsBookingTextForCustomer = "Dear " . $getUserQueryResult[0]->family_member_full_name . " your booking has been confirmed for Dr.  " . $getDoctorQueryResult[0]->doctor_full_name . " dated " . $bookingDate . " with booking number " . $bookingSlotPosition . " . Please contact " . $getClinicQueryResult[0]->clinic_full_name;
+                        DB::table('dm_sms_schedule_details')->insertGetId(
+                            [
+                                'mobile_number' => $getUserQueryResult[0]->family_member_mobile_number,
+                                'sms_text' => $smsBookingTextForCustomer,
+                                'sms_type' => 'Appointment Booking',
+
+                            ]
+                        );
+                        $smsBookingTextForClinic = "Booking has made by " . $getUserQueryResult[0]->family_member_full_name . " for Dr.  " . $getDoctorQueryResult[0]->doctor_full_name . " dated " . $bookingDate . "";
+                        DB::table('dm_sms_schedule_details')->insertGetId(
+                            [
+                                'mobile_number' => $getClinicQueryResult[0]->clinic_mobile_number,
+                                'sms_text' => $smsBookingTextForClinic,
+                                'sms_type' => 'Appointment Booking',
+
+                            ]
+                        );
+                        DB::commit();
+                        $resultData['result'] = "success";
+                        $resultData['bookingCode'] = $bookingCode;
+                        $resultData['bookingId'] = $insertId;
+                        $resultData['bookingType'] = 0;
+                        } else {
+                        $resultData['result'] = "bookedself";
+                        }
+
+                    } else {
+                        $resultData['result'] = "booked";
+                    }
+
+                } else {
+                    $resultData['result'] = "onlyforpatient";
+                }
+
+            } else {
+                   // register with patient profile
+                //fetch country_id wrt $bookingMadeByUserId 
+         $fetch_country_id=   DB::table('dm_user')->select('country_id')->where('user_id',$bookingMadeByUserId)->first();
+     
+                $password = "123456"; //mt_rand(100000, 999999);
+                $customerId = DB::table('dm_user')->insertGetId(
+                    [
+                        'role_id' => 1,
+                        'country_id'=>$fetch_country_id->country_id,
+                        'user_mobile' => $patientMobileNumber,
+                        'password' => bcrypt($password),
+                        'password_normal' => $password,
+
+                    ]
+                );
+
+                DB::table('dm_customer_personal_details')->insertGetId(
+                    [
+                        'user_id' => $customerId,
+                        'customer_first_name' => ucfirst($patientFirstName),
+                        'customer_last_name' => ucfirst($patientLastName),
+                        'customer_full_name' => ucfirst($patientFirstName) . " " . ucfirst($patientLastName),
+                        'customer_mobile_number' => $patientMobileNumber,
+                    ]
+                );
+
+                $familyId = DB::table('dm_family_member')->insertGetId(
+                    [
+
+                        'family_member_first_name' => ucfirst($patientFirstName),
+                        'family_member_last_name' => ucfirst($patientLastName),
+                        'family_member_full_name' => ucfirst($patientFirstName) . " " . ucfirst($patientLastName),
+                        'family_member_mobile_number' => $patientMobileNumber,
+                        'user_id' => $customerId,
+                        'is_self' => 1,
+                    ]
+                );
+
+                $getRewardAmountQuery = DB::table('dm_reward_amount_description')->where('reward_amount_description_id', 1)->get();
+                $saveRewardQuery = DB::table('dm_reward')->insertGetId(
+                    [
+                        'user_id' => $customerId,
+                        'reward_balance' => $getRewardAmountQuery[0]->reward_amount,
+
+                    ]
+                );
+
+                DB::table('dm_reward_transaction')->insertGetId(
+                    [
+                        'reward_id' => $saveRewardQuery,
+                        'user_id' => $customerId,
+                        'reward_transaction_balance' => $getRewardAmountQuery[0]->reward_amount,
+                        'reward_transaction_remarks' => $getRewardAmountQuery[0]->reward_amount_description,
+                        'is_reward_balance_added' => 1,
+
+                    ]
+                );
+
+                $bookingCodePrefix = "IA" . date("ym");
+                $bookingCode = IdGenerator::generate(['table' => 'dm_in_clinic_booking', 'field' => 'in_clinic_booking_code', 'length' => 12, 'prefix' => $bookingCodePrefix,
+                    'reset_on_prefix_change' => true]);
+
+                $transactionCodePrefix = "IT" . date("ym");
+                $transctionCode = IdGenerator::generate(['table' => 'dm_in_clinic_booking_transaction', 'field' => 'in_clinic_transaction_code', 'length' => 12, 'prefix' => $transactionCodePrefix,
+                    'reset_on_prefix_change' => true]);
+
+                $bookingDate = date("Y-m-d", strtotime($bookingDate));
+                $getGstQuery = DB::table('dm_gst')->where('gst_applicable_for', 1)
+                    ->where('gst_is_active', 1)
+                    ->whereRaw('now() between gst_valid_start_date and gst_valid_end_date')
+                    ->get();
+                $getGstResult = $getGstQuery->toArray();
+
+                $getBookingQuery = DB::table('dm_in_clinic_booking')
+                    ->where('in_clinic_slot_dates_id', $inClinicSlotDateId)
+                    ->where('in_clinic_booking_slot_position', $bookingSlotPosition)
+                    ->where('slot_name_id', $slotNameId)
+                    ->where('in_clinic_booking_is_active', 1)
+                    ->where('clinic_id', $clinicId)
+                    ->where('doctor_id', $doctorId)
+
+                    ->get();
+                if ($getBookingQuery->count() == 0) {
+
+                    $getFamilyQuery = DB::table('dm_in_clinic_booking')
+                        ->where('in_clinic_slot_dates_id', $inClinicSlotDateId)
+                        ->where('in_clinic_booking_made_for_family_id', $familyId)
+                        ->where('in_clinic_booking_is_active', 1)
+                        ->where('clinic_id', $clinicId)
+                        ->where('doctor_id', $doctorId)
+                        ->get();
+
+                    // if ($getFamilyQuery->count() == 0) {
+                    $insertId = DB::table('dm_in_clinic_booking')->insertGetId(
+                        [
+                            'in_clinic_slot_id' => $inClinicSlotId,
+                            'in_clinic_slot_dates_id' => $inClinicSlotDateId,
+                            'slot_name_id' => $slotNameId,
+                            'clinic_id' => $clinicId,
+                            'doctor_id' => $doctorId,
+                            'in_clinic_booking_made_by_role_id' => $bookingMadeByRoleId,
+                            'in_clinic_booking_made_by_user_id' => $bookingMadeByUserId,
+                            'in_clinic_booking_made_for_family_id' => $familyId,
+                            'in_clinic_is_booking_done_for_self' => $isBookingDoneForSelf,
+                            'in_clinic_booking_slot_position' => $bookingSlotPosition,
+                            'in_clinic_booking_date' => $bookingDate,
+                            'in_clinic_price' => $inClinicPrice,
+                            'in_clinic_service_fee' => $inClinicServiceFee,
+                            'in_clinic_booking_code' => $bookingCode,
+                            'in_clinic_booking_cancellation_days' => $inClinicCancellationDays,
+							'disease_name' => $disease_name,
+							'source' => $source,
+							'old_new' => $old_new,
+							'type' => $type,
+							'location' => $location,
+
+                        ]
+                    );
+
+                    DB::table('dm_in_clinic_booking_transaction')->insertGetId(
+                        [
+                            'in_clinic_booking_id' => $insertId,
+                            'in_clinic_slot_id' => $inClinicSlotId,
+                            'in_clinic_slot_dates_id' => $inClinicSlotDateId,
+                            'slot_name_id' => $slotNameId,
+                            'clinic_id' => $clinicId,
+                            'doctor_id' => $doctorId,
+                            'payment_method_id' => $paymentMethodId,
+                            'reward_id' => $rewardId,
+                            'reward_transaction_id' => $rewardTransactionId,
+                            'offer_id' => $offerId,
+                            'in_clinic_booking_made_by_role_id' => $bookingMadeByRoleId,
+                            'in_clinic_booking_made_by_user_id' => $bookingMadeByUserId,
+                            'in_clinic_booking_made_for_family_id' => $familyId,
+                            'in_clinic_is_booking_done_for_self' => $isBookingDoneForSelf,
+                            'in_clinic_booking_slot_position' => $bookingSlotPosition,
+                            'in_clinic_booking_date' => $bookingDate,
+                            'in_clinic_price' => $inClinicPrice,
+                            'in_clinic_service_fee' => $inClinicServiceFee,
+                            'in_clinic_booking_paid_amount' => $paidAmount,
+                            'in_clinic_booking_offer_price' => $inClinicPrice,
+                            'in_clinic_booking_gst_price' => $paidAmount * $getGstResult[0]->gst_percentage / 100,
+                            'in_clinic_booking_cgst_price' => $paidAmount * $getGstResult[0]->gst_cgst_percentage / 100,
+                            'in_clinic_booking_sgst_price' => $paidAmount * $getGstResult[0]->gst_sgst_percentage / 100,
+                            'in_clinic_booking_igst_price' => $paidAmount * $getGstResult[0]->gst_igst_percentage / 100,
+                            'in_clinic_transaction_code' => $transctionCode,
+
+                        ]
+                    );
+
+                    $smsBookingTextForCustomer = "Dear " . $patientFirstName . " " . $patientLastName . " your booking has been confirmed for Dr.  " . $getDoctorQueryResult[0]->doctor_full_name . " dated " . $bookingDate . " with booking number " . $bookingSlotPosition . " . Please contact " . $getClinicQueryResult[0]->clinic_full_name;
+                    DB::table('dm_sms_schedule_details')->insertGetId(
+                        [
+                            'mobile_number' => $patientMobileNumber,
+                            'sms_text' => $smsBookingTextForCustomer,
+                            'sms_type' => 'Appointment Booking',
+
+                        ]
+                    );
+                    $smsBookingTextForClinic = "Booking has made by " . $patientFirstName . " " . $patientLastName . " for Dr.  " . $getDoctorQueryResult[0]->doctor_full_name . " dated " . $bookingDate . "";
+                    DB::table('dm_sms_schedule_details')->insertGetId(
+                        [
+                            'mobile_number' => $getClinicQueryResult[0]->clinic_mobile_number,
+                            'sms_text' => $smsBookingTextForClinic,
+                            'sms_type' => 'Appointment Booking',
+
+                        ]
+                    );
+
+                    $registrationSMSForCustomer = "Your Login details are :" . " Login ID : " . $patientMobileNumber . " Password : " . $password . " You can login by downloading the app https://play.google.com/store/apps/details?id=com.docsmeet.docsmeet. Team DocsMeet";
+                    DB::table('dm_sms_schedule_details')->insertGetId(
+                        [
+                            'mobile_number' => $patientMobileNumber,
+                            'sms_text' => $registrationSMSForCustomer,
+                            'sms_type' => 'Registration SMS',
+
+                        ]
+                    );
+                    DB::commit();
+                    $resultData['result'] = "success";
+                    $resultData['bookingCode'] = $bookingCode;
+
+                    // } else {
+                    //     $resultData['result'] = "bookedself";
+                    // }
+
+                } else {
+                    $resultData['result'] = "booked";
+                }
+            }
+
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = $ex->getMessage();
+        }
+
+        return $resultData;
+    }
+
+    // Send login details to customer whose booking done by clinic
+    public function sendLoginDetailsBookedByClinic($mobile, $password)
+    {
+        $text = "Your Login details are :" . " Login ID : " . $mobile . " Password : " . $password . " You can login by downloading the app https://play.google.com/store/apps/details?id=com.docsmeet.docsmeet. Team DocsMeet";
+        try
+        {
+            $smstext = rawurlencode($text);
+            $ch = curl_init("https://www.smsgatewayhub.com/api/mt/SendSMS?APIKey=V6dw6TBazEGoT3a3exO8UA&senderid=ODILAS&channel=2&DCS=0&flashsms=0&number=$mobile&text=$smstext&route=1");
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, "");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 2);
+            $result = curl_exec($ch);
+            if (curl_error($ch)) {
+                $result = curl_errno($ch);
+            }
+        } catch (Exception $ex) {
+            $result = $ex->getMessage();
+        }
+
+        return response()->json($result);
+    }
+
+    //get  in clinic booking by clinic
+    public function getInClinicBookingListByClinic($bookigDoneForClinicId,
+        $bookigStatus, $pageNumber, $itemToLoad, $searchText) {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        if($searchText!='' || $searchText!=0)
+        {
+            $searchText=$searchText;
+        }
+        else
+        {
+            $searchText='';
+        }
+        
+        $getQuery = DB::table('dm_in_clinic_booking')
+            ->leftJoin('dm_in_clinic_slot', 'dm_in_clinic_slot.in_clinic_slot_id', '=', 'dm_in_clinic_booking.in_clinic_slot_id')
+            ->leftJoin('dm_in_clinic_slot_dates', 'dm_in_clinic_slot_dates.in_clinic_slot_dates_id', '=', 'dm_in_clinic_booking.in_clinic_slot_dates_id')
+            ->leftJoin('dm_slot_name', 'dm_slot_name.slot_name_id', '=', 'dm_in_clinic_booking.slot_name_id')
+            ->leftJoin('dm_clinic', 'dm_clinic.clinic_id', '=', 'dm_in_clinic_booking.clinic_id')
+            ->leftJoin('dm_doctor', 'dm_doctor.doctor_id', '=', 'dm_in_clinic_booking.doctor_id')
+            ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+            ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+
+            ->leftJoin('dm_family_member', 'dm_family_member.family_member_id', '=', 'dm_in_clinic_booking.in_clinic_booking_made_for_family_id')
+            ->leftJoin('dm_clinic_image', 'dm_clinic_image.clinic_id', '=', 'dm_clinic.clinic_id');
+            
+            if($bookigDoneForClinicId!='827')
+            {
+                 $getQuery = $getQuery->where('dm_in_clinic_booking.in_clinic_booking_made_by_user_id', '=', $bookigDoneForClinicId);
+            }
+            
+            //->where('dm_in_clinic_booking.in_clinic_booking_made_by_user_id', '=', $bookigDoneForClinicId)
+             $getQuery = $getQuery->where('dm_in_clinic_booking.in_clinic_booking_is_active', '=', $bookigStatus)
+            ->where('dm_clinic_image.clinic_image_type', '=', 1)
+            ->where('dm_specialization.specialization_type', '=', 1)
+            ->where('dm_doctor_education.education_type', '=', 1)
+            ->select([
+                'dm_clinic.clinic_id',
+                'dm_clinic.clinic_first_name',
+                'dm_clinic.clinic_last_name',
+                'dm_clinic.clinic_full_name',
+                'dm_clinic.clinic_mobile_number',
+                'dm_clinic.clinic_profile_image',
+                'dm_clinic_image.clinic_image',
+                'dm_clinic.clinic_address',
+
+                'dm_doctor.doctor_id',
+                'dm_doctor.doctor_first_name',
+                'dm_doctor.doctor_last_name',
+                'dm_doctor.doctor_full_name',
+                'dm_doctor.doctor_mobile_number',
+                'dm_doctor.doctor_profile_image',
+                'dm_specialization.specialization_name',
+                'dm_doctor.doctor_overall_experience',
+                'dm_doctor_education.education_name',
+
+                'dm_family_member.family_member_id',
+                'dm_family_member.user_id',
+                'dm_family_member.family_member_first_name',
+                'dm_family_member.family_member_last_name',
+                'dm_family_member.family_member_full_name',
+                'dm_family_member.family_member_mobile_number',
+                'dm_family_member.family_member_profile_image',
+                'dm_family_member.is_self',
+
+                'dm_in_clinic_slot.in_clinic_slot_id',
+
+                'dm_in_clinic_slot_dates.in_clinic_slot_dates_id',
+
+                'dm_slot_name.slot_name_id',
+                'dm_slot_name.slot_name',
+
+                'dm_in_clinic_booking.in_clinic_booking_id',
+                'dm_in_clinic_booking.in_clinic_booking_code',
+                'dm_in_clinic_booking.in_clinic_booking_made_by_role_id',
+                'dm_in_clinic_booking.in_clinic_booking_made_by_user_id',
+                'dm_in_clinic_booking.in_clinic_booking_made_for_family_id',
+                'dm_in_clinic_booking.in_clinic_is_booking_done_for_self',
+                'dm_in_clinic_booking.in_clinic_booking_slot_position',
+                'dm_in_clinic_booking.in_clinic_price',
+                'dm_in_clinic_booking.in_clinic_service_fee',
+                'dm_in_clinic_booking.in_clinic_booking_cancellation_days',
+                'dm_in_clinic_booking.in_clinic_booking_is_active',
+
+                DB::raw('DATE_FORMAT(dm_in_clinic_booking.in_clinic_booking_date, "%d-%m-%Y") as in_clinic_booking_date', "%d-%m-%Y"),
+
+                DB::raw('if(DATE_sub(DATE_FORMAT(dm_in_clinic_booking.in_clinic_booking_date,"%Y-%m-%d"),
+INTERVAL dm_in_clinic_booking.in_clinic_booking_cancellation_days DAY)>=date_format(now(),"%Y-%m-%d"),"1","1") as "booking_cancel_date_check"'),
+
+            ]);
+            
+            if($searchText!='')
+            {
+                $getQuery = $getQuery->where(function ($getQuery) use ($searchText) {
+                    $getQuery->where(DB::raw('DATE_FORMAT(dm_in_clinic_booking.in_clinic_booking_date,"%d-%m-%Y")'), '=', date('d-m-Y',strtotime(str_replace("/", "-", $searchText))))
+                        ->orwhere('dm_in_clinic_booking.in_clinic_booking_slot_position', 'LIKE', '%'.$searchText.'%')->orwhere('dm_family_member.family_member_mobile_number', 'LIKE', '%'.$searchText.'%')
+                        ->orwhere('dm_family_member.family_member_mobile_number', 'LIKE', '%'.$searchText.'%');
+
+                    });
+                
+            }
+            
+            if($bookigStatus==1)
+            {
+                $getQuery = $getQuery->where('dm_in_clinic_booking.in_clinic_booking_date', '>=', date("Y-m-d"));
+            }
+            
+            $getQuery = $getQuery->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->orderBy('dm_in_clinic_booking.in_clinic_booking_date', 'desc')
+            ->orderBy('dm_in_clinic_booking.in_clinic_booking_slot_position','asc')
+            ->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+// to get the booking slot date by clinic
+    public function getInClinicBookingSlotDateByClinic($clinicId)
+    {
+        $currentDate = date('Y-m-d');
+        $getQuery = DB::select("select `dm_doctor`.`doctor_full_name`, `dm_doctor`.`doctor_id`, `dm_doctor`.`doctor_profile_image`, `dm_clinic`.`clinic_id`,
+    `dm_clinic`.`clinic_full_name`, `dm_clinic`.`clinic_address`, DATE_FORMAT(dm_in_clinic_slot_dates.in_clinic_slot_dates, '%D %M %Y')
+    as in_clinic_slot_dates, `dm_in_clinic_slot_dates`.`in_clinic_slot_dates_id`, `dm_in_clinic_slot`.`in_clinic_slot_id`,
+    `dm_in_clinic_slot`.`slot_name_id`, sum(distinct dm_in_clinic_slot_dates.in_clinic_max_slot_position_datewise) as in_clinic_max_slot_position_datewise, count(dm_in_clinic_booking.in_clinic_slot_dates_id) as booked_slot
+     from `dm_in_clinic_slot_dates` left join `dm_in_clinic_slot`
+     on `dm_in_clinic_slot`.`in_clinic_slot_id` = `dm_in_clinic_slot_dates`.`in_clinic_slot_id`
+     left join `dm_doctor` on `dm_doctor`.`doctor_id` = `dm_in_clinic_slot`.`doctor_id`
+     left join `dm_clinic` on `dm_clinic`.`clinic_id` = `dm_in_clinic_slot`.`clinic_id`
+     left join dm_in_clinic_booking on dm_in_clinic_booking.in_clinic_slot_dates_id = dm_in_clinic_slot_dates.in_clinic_slot_dates_id
+     where `dm_in_clinic_slot_dates`.`in_clinic_slot_dates_is_active` = 1
+     and `dm_in_clinic_slot_dates`.`in_clinic_slot_dates` >= '$currentDate'
+    and `dm_in_clinic_slot`.`clinic_id` = $clinicId
+     group by `dm_in_clinic_slot_dates`.`in_clinic_slot_dates`");
+        return $getQuery;
+
+    }
+
+    // To get the in clinic booking  list date slot clinic wise
+
+    public function getDoctorListDateSlotClinicWise($clinicId,
+        $inClinicSlotDatesId, $slotNameId, $pageNumber, $itemToLoad) {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getQuery = DB::table('dm_in_clinic_booking')
+            ->leftJoin('dm_doctor', 'dm_doctor.doctor_id', '=', 'dm_in_clinic_booking.doctor_id')
+            ->leftJoin('dm_in_clinic_slot_dates', 'dm_in_clinic_slot_dates.in_clinic_slot_dates_id', '=', 'dm_in_clinic_booking.in_clinic_slot_dates_id')
+            ->where('dm_in_clinic_booking.clinic_id', '=', $clinicId)
+            ->where('dm_in_clinic_booking.in_clinic_slot_dates_id', '=', $inClinicSlotDatesId)
+            ->where('dm_in_clinic_booking.slot_name_id', '=', $slotNameId)
+            ->select([
+                'dm_in_clinic_slot_dates.in_clinic_doctor_present',
+                'dm_doctor.doctor_id',
+                'dm_doctor.doctor_first_name',
+                'dm_doctor.doctor_last_name',
+                'dm_doctor.doctor_full_name',
+                'dm_doctor.doctor_mobile_number',
+                'dm_doctor.doctor_profile_image',
+                'dm_in_clinic_booking.in_clinic_booking_is_active',
+                'dm_in_clinic_slot_dates.is_doctor_present_visible',
+
+                DB::raw("(SELECT count(*) FROM dm_in_clinic_booking
+          WHERE dm_in_clinic_booking.clinic_id =$clinicId
+          and dm_in_clinic_booking.in_clinic_slot_dates_id=$inClinicSlotDatesId
+          and dm_in_clinic_booking.slot_name_id=$slotNameId and in_clinic_booking_is_active=1
+
+        ) as totalBooking"),
+
+            ])
+            ->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->groupBy('dm_in_clinic_booking.doctor_id')
+            ->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+    // To get the in clinic booking  list
+    public function getInClinicBookingByClinicDoctorSlotDate($bookingStatus, $clinicId,
+        $inClinicSlotDatesId, $slotNameId, $doctorId, $pageNumber, $itemToLoad) {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getQuery = DB::table('dm_in_clinic_booking')
+            ->leftJoin('dm_in_clinic_slot', 'dm_in_clinic_slot.in_clinic_slot_id', '=', 'dm_in_clinic_booking.in_clinic_slot_id')
+            ->leftJoin('dm_in_clinic_slot_dates', 'dm_in_clinic_slot_dates.in_clinic_slot_dates_id', '=', 'dm_in_clinic_booking.in_clinic_slot_dates_id')
+            ->leftJoin('dm_slot_name', 'dm_slot_name.slot_name_id', '=', 'dm_in_clinic_booking.slot_name_id')
+            ->leftJoin('dm_clinic', 'dm_clinic.clinic_id', '=', 'dm_in_clinic_booking.clinic_id')
+            ->leftJoin('dm_doctor', 'dm_doctor.doctor_id', '=', 'dm_in_clinic_booking.doctor_id')
+            ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+            ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+
+            ->leftJoin('dm_family_member', 'dm_family_member.family_member_id', '=', 'dm_in_clinic_booking.in_clinic_booking_made_for_family_id')
+            ->leftJoin('dm_clinic_image', 'dm_clinic_image.clinic_id', '=', 'dm_clinic.clinic_id')
+
+            ->where('dm_in_clinic_booking.clinic_id', '=', $clinicId)
+            ->where('dm_in_clinic_booking.in_clinic_slot_dates_id', '=', $inClinicSlotDatesId)
+            ->where('dm_in_clinic_booking.slot_name_id', '=', $slotNameId)
+            ->where('dm_in_clinic_booking.doctor_id', '=', $doctorId)
+            ->where('dm_in_clinic_booking.in_clinic_booking_is_active', '=', $bookingStatus)
+            ->where('dm_clinic_image.clinic_image_type', '=', 1)
+            ->where('dm_specialization.specialization_type', '=', 1)
+            ->where('dm_doctor_education.education_type', '=', 1)
+            ->select([
+                'dm_clinic.clinic_id',
+                'dm_clinic.clinic_first_name',
+                'dm_clinic.clinic_last_name',
+                'dm_clinic.clinic_full_name',
+                'dm_clinic.clinic_mobile_number',
+                'dm_clinic.clinic_profile_image',
+                'dm_clinic_image.clinic_image',
+                'dm_clinic.clinic_address',
+
+                'dm_doctor.doctor_id',
+                'dm_doctor.doctor_first_name',
+                'dm_doctor.doctor_last_name',
+                'dm_doctor.doctor_full_name',
+                'dm_doctor.doctor_mobile_number',
+                'dm_doctor.doctor_profile_image',
+                'dm_specialization.specialization_name',
+                'dm_doctor.doctor_overall_experience',
+                'dm_doctor_education.education_name',
+
+                'dm_family_member.family_member_id',
+                'dm_family_member.user_id',
+                'dm_family_member.family_member_first_name',
+                'dm_family_member.family_member_last_name',
+                'dm_family_member.family_member_full_name',
+                'dm_family_member.family_member_mobile_number',
+                'dm_family_member.family_member_profile_image',
+                'dm_family_member.is_self',
+
+                'dm_in_clinic_slot.in_clinic_slot_id',
+
+                'dm_in_clinic_slot_dates.in_clinic_slot_dates_id',
+
+                'dm_slot_name.slot_name_id',
+                'dm_slot_name.slot_name',
+
+                'dm_in_clinic_booking.in_clinic_booking_id',
+                'dm_in_clinic_booking.in_clinic_booking_code',
+                'dm_in_clinic_booking.in_clinic_booking_made_by_role_id',
+                'dm_in_clinic_booking.in_clinic_booking_made_by_user_id',
+                'dm_in_clinic_booking.in_clinic_booking_made_for_family_id',
+                'dm_in_clinic_booking.in_clinic_is_booking_done_for_self',
+                'dm_in_clinic_booking.in_clinic_booking_slot_position',
+                'dm_in_clinic_booking.in_clinic_booking_current_slot_position',
+                'dm_in_clinic_booking.in_clinic_price',
+                'dm_in_clinic_booking.in_clinic_service_fee',
+                'dm_in_clinic_booking.in_clinic_booking_is_active',
+                'dm_in_clinic_booking.in_clinic_booking_cancellation_days',
+
+                DB::raw('DATE_FORMAT(dm_in_clinic_booking.in_clinic_booking_date, "%d-%m-%Y") as in_clinic_booking_date', "%d-%m-%Y"),
+                DB::raw('if(DATE_sub(DATE_FORMAT(dm_in_clinic_booking.in_clinic_booking_date,"%Y-%m-%d"),
+                INTERVAL dm_in_clinic_booking.in_clinic_booking_cancellation_days DAY)>=date_format(now(),"%Y-%m-%d"),"1","1") as "booking_cancel_date_check"'),
+
+            ])
+            ->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->orderByRaw('CAST(in_clinic_booking_current_slot_position as SIGNED INTEGER)', 'asc')
+            ->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+
+    }
+
+    //cancel in clinic booking
+    public function completeInClinicBooking($in_clinic_booking_id, $inClinicSlotDatesId, $inClinicSlotId)
+    {
+        try {
+
+            DB::beginTransaction();
+
+            DB::table('dm_in_clinic_booking')
+                ->where('in_clinic_booking_id', $in_clinic_booking_id)
+                ->update([
+                    'in_clinic_booking_is_active' => 3, //completd
+                    'in_clinic_booking_updated_date' => now(),
+
+                ]);
+
+            DB::table('dm_in_clinic_booking_transaction')
+                ->where('in_clinic_booking_id', $in_clinic_booking_id)
+                ->update([
+                    'in_clinic_booking_transaction_is_active' => 3, //completd
+                    'in_clinic_booking_transaction_update_date' => now(),
+
+                ]);
+            DB::unprepared("DROP TEMPORARY TABLE IF EXISTS slot_temp;CREATE TEMPORARY TABLE slot_temp
+AS
+(SELECT  @a:=@a+1 rank,
+        in_clinic_booking_id
+FROM    dm_in_clinic_booking,
+        (SELECT @a:= 0) AS a
+
+        where in_clinic_slot_dates_id=$inClinicSlotDatesId and in_clinic_booking_is_active=1
+        order by in_clinic_booking_current_slot_position asc);
+
+UPDATE dm_in_clinic_booking a, slot_temp b
+SET a.in_clinic_booking_current_slot_position = b.rank,
+
+
+in_clinic_booking_appointment_time =  DATE_ADD(current_time() ,
+INTERVAL ((select in_clinic_slot_interval from dm_in_clinic_slot where in_clinic_slot_id=$inClinicSlotId) * (b.rank-1))  minute) ,
+
+in_clinic_booking_reporting_time = date_add( DATE_ADD(current_time() ,
+INTERVAL ((select in_clinic_slot_interval from dm_in_clinic_slot where in_clinic_slot_id=$inClinicSlotId) * (b.rank-1))  minute), INTERVAL -5 minute)
+
+
+WHERE a.in_clinic_booking_id = b.in_clinic_booking_id
+
+");
+
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+    }
+
+    public function cancelAllInClinicBooking($clinicId,
+        $inClinicSlotDatesId, $slotNameId, $doctorId) {
+        try {
+
+            DB::beginTransaction();
+            $allFamily_query = DB::table('dm_in_clinic_booking')
+
+                ->leftJoin('dm_family_member', 'dm_family_member.family_member_id', '=', 'dm_in_clinic_booking.in_clinic_booking_made_for_family_id')
+                ->leftJoin('dm_clinic', 'dm_clinic.clinic_id', '=', 'dm_in_clinic_booking.clinic_id')
+                ->leftJoin('dm_doctor', 'dm_doctor.doctor_id', '=', 'dm_in_clinic_booking.doctor_id')
+                ->where('dm_in_clinic_booking.clinic_id', '=', $clinicId)
+                ->where('dm_in_clinic_booking.in_clinic_slot_dates_id', '=', $inClinicSlotDatesId)
+                ->where('dm_in_clinic_booking.slot_name_id', '=', $slotNameId)
+                ->where('dm_in_clinic_booking.doctor_id', '=', $doctorId)
+                ->where('dm_in_clinic_booking.in_clinic_booking_is_active', '=', 1)
+
+                ->select([
+
+                    'dm_clinic.clinic_full_name',
+                    'dm_doctor.doctor_full_name',
+                    'dm_in_clinic_booking.in_clinic_booking_slot_position',
+                    'dm_in_clinic_booking.in_clinic_booking_date',
+                    'dm_in_clinic_booking.in_clinic_booking_cancellation_days',
+
+                    DB::raw(" (SELECt  group_concat(distinct(dm_family_member.family_member_mobile_number))) as mobile_numbers"),
+                    DB::raw('if(DATE_sub(DATE_FORMAT(dm_in_clinic_booking.in_clinic_booking_date,"%Y-%m-%d"),
+                    INTERVAL dm_in_clinic_booking.in_clinic_booking_cancellation_days DAY)>=date_format(now(),"%Y-%m-%d"),"1","1") as "booking_cancel_date_check"'),
+
+                ])
+
+                ->get();
+
+            if ($allFamily_query[0]->booking_cancel_date_check == "1") {
+                DB::table('dm_in_clinic_booking')
+                    ->where('dm_in_clinic_booking.clinic_id', '=', $clinicId)
+                    ->where('dm_in_clinic_booking.in_clinic_slot_dates_id', '=', $inClinicSlotDatesId)
+                    ->where('dm_in_clinic_booking.slot_name_id', '=', $slotNameId)
+                    ->where('dm_in_clinic_booking.doctor_id', '=', $doctorId)
+                    ->update([
+                        'in_clinic_booking_is_active' => 2, //rejected
+                        'in_clinic_booking_updated_date' => now(),
+
+                    ]);
+
+                DB::table('dm_in_clinic_booking_transaction')
+                    ->where('dm_in_clinic_booking_transaction.clinic_id', '=', $clinicId)
+                    ->where('dm_in_clinic_booking_transaction.in_clinic_slot_dates_id', '=', $inClinicSlotDatesId)
+                    ->where('dm_in_clinic_booking_transaction.slot_name_id', '=', $slotNameId)
+                    ->where('dm_in_clinic_booking_transaction.doctor_id', '=', $doctorId)
+                    ->update([
+                        'in_clinic_booking_transaction_is_active' => 2, //rejected
+                        'in_clinic_booking_transaction_update_date' => now(),
+
+                    ]);
+                $smsCancelBooking = "Your booking has been cancelled for Dr.  " . $allFamily_query[0]->doctor_full_name . " dated " . $allFamily_query[0]->in_clinic_booking_date . " . Please contact " . $allFamily_query[0]->clinic_full_name;
+                DB::table('dm_sms_schedule_details')->insertGetId(
+                    [
+                        'mobile_number' => $allFamily_query[0]->mobile_numbers,
+                        'sms_text' => $smsCancelBooking,
+                        'sms_type' => 'Cancel Booking',
+
+                    ]
+                );
+
+                DB::commit();
+                // $this->cancelBookingSMS($allFamily_query[0]->mobile_numbers, $allFamily_query[0]->doctor_full_name, $allFamily_query[0]->clinic_full_name, $allFamily_query[0]->in_clinic_booking_date);
+                $resultData['result'] = "success";
+            } else {
+                $resultData['result'] = "fail";
+                $resultData['inClinicBookingCancelDays'] = $allFamily_query[0]->in_clinic_booking_cancellation_days;
+            }
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+    }
+
+    // Cancel booking SMS
+    public function cancelBookingSMS($mobile, $doctorName, $clinicName, $bookingDate)
+    {
+        try
+        {
+            $smstext = rawurlencode("Your booking has been cancelled for Dr.  " . $doctorName . " dated " . $bookingDate . " . Please contact " . $clinicName);
+            $ch = curl_init("https://www.smsgatewayhub.com/api/mt/SendSMS?APIKey=V6dw6TBazEGoT3a3exO8UA&senderid=ODILAS&channel=2&DCS=0&flashsms=0&number=$mobile&text=$smstext&route=1");
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, "");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 2);
+            $result = curl_exec($ch);
+            if (curl_error($ch)) {
+                $result = curl_errno($ch);
+            }
+        } catch (Exception $ex) {
+            $result = $ex->getMessage();
+        }
+
+        return response()->json($result);
+    }
+
+    public function sendAllTypeSMS()
+    {
+
+        $getQuery = DB::table('dm_sms_schedule_details')
+
+            ->where('sms_is_active', null)
+        //->orWhere('sms_is_active', '!=', 'Expired')
+            ->select([
+                'mobile_number',
+                'sms_text',
+                'sms_schedule_id',
+            ])
+            ->get();
+        //echo (  $getQuery->count());
+
+        foreach ($getQuery as $key => $value) {
+            $smsText = rawurlencode($value->sms_text);
+            $mobileNumber = $value->mobile_number;
+
+            $ch = curl_init("https://www.smsgatewayhub.com/api/mt/SendSMS?APIKey=V6dw6TBazEGoT3a3exO8UA&senderid=ODILAS&channel=2&DCS=0&flashsms=0&number=$mobileNumber&text=$smsText&route=1");
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, "");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 2);
+            $result = curl_exec($ch);
+            curl_close($ch);
+            $decodedResult = json_decode($result, true);
+
+            DB::table('dm_sms_schedule_details')
+                ->where('sms_schedule_id', $value->sms_schedule_id)
+                ->update([
+                    'error_message' => $decodedResult['ErrorMessage'],
+                    'message_id' => $decodedResult['MessageData'][0]['MessageId'],
+                    'delivery_status' => 'Pending',
+                    'job_id' => $decodedResult['JobId'],
+                    'sms_is_active' => $decodedResult['ErrorMessage'],
+                ]);
+
+        }
+
+    }
+
+    public function getSMSStatus()
+    {
+
+        $getQuery = DB::table('dm_sms_schedule_details')
+            ->where('delivery_status', '!=', 'Delivered')
+            ->where('delivery_status', '!=', 'Expired')
+            ->where('error_message', 'Success')
+            ->select([
+                'job_id',
+                'sms_schedule_id',
+            ])
+            ->get();
+
+        foreach ($getQuery as $key => $value) {
+
+            $ch = curl_init("https://www.smsgatewayhub.com/api/mt/GetDelivery?APIKey=V6dw6TBazEGoT3a3exO8UA&jobid=$value->job_id");
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_POST, 1);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, "");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, 2);
+            $result = curl_exec($ch);
+            curl_close($ch);
+            $jsonResult = json_decode($result, true);
+            DB::table('dm_sms_schedule_details')
+                ->where('sms_schedule_id', $value->sms_schedule_id)
+                ->where('job_id', $value->job_id)
+                ->update([
+                    'delivery_status' => $jsonResult['DeliveryReports'][0]['DeliveryStatus'],
+
+                ]);
+
+        }
+    }
+
+    // To notify customer about doctor date slot
+    public function notifyCustomerAboutDoctorDateSlot($clinicId,
+        $doctorId, $userId) {
+        try {
+            DB::beginTransaction();
+            DB::table('dm_notify_customer_about_doctor_date_slot')
+                ->updateOrInsert(
+                    ['user_id' => $userId,
+                        'doctor_id' => $doctorId,
+                        'clinic_id' => $clinicId],
+                    ['notify_customer_about_doctor_date_slot_created_at' => now()]
+                );
+
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+    }
+
+    // search doctor clinic speciality
+    public function searchDoctor($searchText, $pageNumber,
+        $itemToLoad
+    ) {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getQuery = DB::select("SELECT dm_clinic.clinic_id , dm_clinic.clinic_full_name ,
+         dm_doctor.doctor_id,dm_doctor.doctor_full_name,dm_doctor.doctor_first_name,dm_doctor.doctor_last_name,
+         dm_doctor.doctor_profile_image,
+         dm_specialization.specialization_name,
+         dm_doctor_clinic_wise.in_clinic_appointment_fee,dm_doctor_clinic_wise.in_clinic_appointment_fee_is_visible,
+         dm_doctor_clinic_wise.in_clinic_book_before_days,dm_doctor_clinic_wise.in_clinic_cancellation_days,
+         dm_doctor_clinic_wise.in_clinic_consultation_is_avialable,dm_doctor_clinic_wise.in_clinic_service_fee,
+         dm_doctor_clinic_wise.video_book_before_days,dm_doctor_clinic_wise.video_cancellation_days,dm_doctor_clinic_wise.video_consultation_fee,
+         dm_doctor_clinic_wise.video_consultation_fee_is_visible,dm_doctor_clinic_wise.video_consultation_is_avialable,
+         dm_doctor_clinic_wise.video_consultation_service_fee
+                  FROM dm_doctor left join dm_doctor_clinic_wise on dm_doctor.doctor_id=dm_doctor_clinic_wise.doctor_id
+
+                  left join dm_specialization on dm_doctor.doctor_id=dm_specialization.doctor_id
+
+                  left join dm_doctor_education on dm_doctor.doctor_id=dm_doctor_education.doctor_id
+
+
+                     left join dm_clinic on dm_clinic.clinic_id=dm_doctor_clinic_wise.clinic_id
+                       WHERE dm_doctor.doctor_full_name LIKE '%" .
+            $searchText . "%'
+                  and dm_doctor.doctor_is_active=1 and dm_clinic.clinic_is_active=1
+                   and dm_specialization.specialization_type and dm_doctor_education.education_type=1
+        limit  $itemToLoad offset $pageNumber ");
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery));
+            echo json_encode($data_response);
+        }
+    }
+
+    // Auto cancel in clinic booking
+    public function autoCancelInClinicBooking()
+    {
+        try {
+            $currentDate = date('Y-m-d');
+            DB::beginTransaction();
+
+            $getQuery = DB::table('dm_in_clinic_booking')
+                ->where('in_clinic_booking_date', '<', $currentDate)
+                ->where('in_clinic_booking_is_active', 1)
+                ->get();
+
+            if ($getQuery->count() > 0) {
+                $getResult = $getQuery->toArray();
+                for ($x = 0; $x < count($getQuery); $x++) {
+
+                    DB::table('dm_in_clinic_booking')
+                        ->where('in_clinic_booking_id', '>', $getResult[$x]->in_clinic_booking_id)
+                        ->update([
+                            'in_clinic_booking_is_active' => 2, //rejected
+                            'in_clinic_booking_updated_date' => now(),
+                        ]);
+
+                    DB::table('dm_in_clinic_booking_transaction')
+                        ->where('in_clinic_booking_id', $getResult[$x]->in_clinic_booking_id)
+                        ->update([
+                            'in_clinic_booking_transaction_is_active' => 2, //rejected
+                            'in_clinic_booking_transaction_update_date' => now(),
+
+                        ]);
+
+                }
+
+            }
+
+            DB::commit();
+
+            $resultData['result'] = "success";
+
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+    }
+
+    // To apollo doctor
+    public function getApolloDoctor($clinicId)
+    {
+        $currentDate = date('Y-m-d');
+        $getQuery = DB::table('dm_in_clinic_slot')
+            ->leftJoin('dm_doctor_clinic_wise', 'dm_doctor_clinic_wise.doctor_id', '=', 'dm_in_clinic_slot.doctor_id')
+            ->leftJoin('dm_doctor', 'dm_doctor.doctor_id', '=', 'dm_in_clinic_slot.doctor_id')
+            ->leftJoin('dm_clinic', 'dm_clinic.clinic_id', '=', 'dm_in_clinic_slot.clinic_id')
+            ->leftJoin('dm_in_clinic_slot_dates', 'dm_in_clinic_slot.in_clinic_slot_id', '=', 'dm_in_clinic_slot_dates.in_clinic_slot_id')
+            ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+            ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+            ->leftJoin('dm_slot_name', 'dm_slot_name.slot_name_id', '=', 'dm_in_clinic_slot.slot_name_id')
+
+            ->where('dm_in_clinic_slot.in_clinic_slot_is_active', '=', 1)
+            ->where('dm_specialization.specialization_type', '=', 1)
+            ->where('dm_in_clinic_slot.clinic_id', '=', $clinicId)
+            ->where('dm_doctor_education.education_type', '=', 1)
+            ->where('dm_in_clinic_slot_dates.in_clinic_slot_dates', '>=', $currentDate)
+            ->select([
+
+                'dm_doctor.doctor_first_name',
+                'dm_doctor.doctor_last_name',
+                'dm_doctor.doctor_full_name',
+                'dm_doctor.doctor_mobile_number',
+                'dm_doctor.doctor_profile_image',
+
+                'dm_specialization.specialization_name',
+                'dm_doctor.doctor_city',
+                'dm_doctor.doctor_id',
+                'dm_doctor.doctor_overall_experience',
+                'dm_doctor_education.education_name',
+                'dm_doctor_clinic_wise.in_clinic_appointment_fee_is_visible',
+                'dm_doctor_clinic_wise.video_consultation_fee_is_visible',
+                'dm_doctor_clinic_wise.video_consultation_is_avialable',
+                'dm_doctor_clinic_wise.in_clinic_appointment_fee',
+                'dm_doctor_clinic_wise.in_clinic_service_fee',
+                'dm_doctor_clinic_wise.video_consultation_service_fee',
+                'dm_doctor_clinic_wise.video_consultation_fee',
+
+                'dm_doctor_clinic_wise.in_clinic_consultation_is_avialable',
+                'dm_doctor_clinic_wise.in_clinic_cancellation_days',
+                'dm_doctor_clinic_wise.video_cancellation_days',
+                'dm_doctor_clinic_wise.in_clinic_book_before_days',
+                'dm_doctor_clinic_wise.video_book_before_days',
+                DB::raw('DATE_FORMAT(dm_in_clinic_slot_dates.in_clinic_slot_dates,"%D %M %Y") as in_clinic_slot_dates', "%D %M %Y"),
+                DB::raw('DATE_FORMAT(dm_in_clinic_slot_dates.in_clinic_slot_dates, "%Y-%m-%d") as in_clinic_slot_dates_another_date_format'),
+                DB::raw('DATE_FORMAT(now(), "%Y-%m-%d") as server_current_date'),
+                'dm_in_clinic_slot.in_clinic_slot_id',
+                'dm_in_clinic_slot.slot_name_id',
+                'dm_in_clinic_slot_dates.in_clinic_max_slot_position_datewise',
+
+                'dm_clinic.clinic_full_name',
+                'dm_slot_name.slot_name',
+                'dm_in_clinic_slot_dates.in_clinic_slot_start_time',
+                'dm_in_clinic_slot_dates.in_clinic_slot_end_time',
+                'dm_in_clinic_slot_dates.in_clinic_slot_dates_id',
+
+            ])
+
+            ->orderBy('dm_in_clinic_slot_dates.in_clinic_slot_dates')
+            ->get();
+
+        $getResult = $getQuery->toArray();
+        return $getResult;
+
+    }
+    public function markDoctorIn($inClinicSlotDatesId, $inClinicSlotId)
+    {
+        try {
+            DB::beginTransaction();
+
+            DB::table('dm_in_clinic_slot_dates')
+                ->where('in_clinic_slot_dates_id', $inClinicSlotDatesId)
+                ->update(['in_clinic_doctor_present' => 1]);
+            DB::unprepared("DROP TEMPORARY TABLE IF EXISTS slot_temp;CREATE TEMPORARY TABLE slot_temp
+AS
+(SELECT  @a:=@a+1 rank,
+        in_clinic_booking_id
+FROM    dm_in_clinic_booking,
+        (SELECT @a:= 0) AS a
+
+        where in_clinic_slot_dates_id=$inClinicSlotDatesId and in_clinic_booking_is_active=1
+        order by in_clinic_booking_slot_position asc);
+
+UPDATE dm_in_clinic_booking a, slot_temp b
+SET a.in_clinic_booking_current_slot_position = b.rank,
+
+
+in_clinic_booking_appointment_time =  DATE_ADD(current_time() ,
+INTERVAL ((select in_clinic_slot_interval from dm_in_clinic_slot where in_clinic_slot_id=$inClinicSlotId) * (b.rank-1))  minute) ,
+
+in_clinic_booking_reporting_time = date_add( DATE_ADD(current_time() ,
+INTERVAL ((select in_clinic_slot_interval from dm_in_clinic_slot where in_clinic_slot_id=$inClinicSlotId) * (b.rank-1))  minute), INTERVAL -5 minute)
+
+
+WHERE a.in_clinic_booking_id = b.in_clinic_booking_id
+
+");
+
+            DB::commit();
+
+            $resultData['result'] = "success";
+
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+    }
+
+    public function updateInClinicBookingSlotPosition($inClinicSlotDatesId, $inClinicSlotId)
+    {
+        DB::unprepared("DROP TEMPORARY TABLE IF EXISTS slot_temp;CREATE TEMPORARY TABLE slot_temp
+AS
+(SELECT  @a:=@a+1 rank,
+        in_clinic_booking_id
+FROM    dm_in_clinic_booking,
+        (SELECT @a:= 0) AS a
+
+        where in_clinic_slot_dates_id=$inClinicSlotDatesId and in_clinic_booking_is_active=1
+        order by in_clinic_booking_current_slot_position asc);
+
+UPDATE dm_in_clinic_booking a, slot_temp b
+SET a.in_clinic_booking_current_slot_position = b.rank,
+
+
+in_clinic_booking_appointment_time =  DATE_ADD(current_time() ,
+INTERVAL ((select in_clinic_slot_interval from dm_in_clinic_slot where in_clinic_slot_id=$inClinicSlotId) * (b.rank-1))  minute) ,
+
+in_clinic_booking_reporting_time = date_add( DATE_ADD(current_time() ,
+INTERVAL ((select in_clinic_slot_interval from dm_in_clinic_slot where in_clinic_slot_id=$inClinicSlotId) * (b.rank-1))  minute), INTERVAL -5 minute)
+
+
+WHERE a.in_clinic_booking_id = b.in_clinic_booking_id
+
+");
+    }
+    // To get disease specialization wise
+
+    public function getSpecializationWiseDisease($doctorId)
+    {
+
+        $getSpecializationQuery = DB::table('dm_specialization')->where('specialization_is_active', 1)
+            ->where('doctor_id', $doctorId)
+            ->get();
+        $getSpecializationResult = $getSpecializationQuery->toArray();
+
+        $getQuery = DB::table('dm_specialization_disease_mapping')
+            ->where('specialization_id', '=', $getSpecializationResult[0]->specialization_id)
+            ->where('specialization_disease_mapping_is_active', '=', 1)
+            ->select(['specialization_id',
+                'disease_name',
+                'specialization_disease_mapping_id',
+
+            ])
+            ->orderBy('disease_name', 'asc')
+            ->get();
+
+        $getResult = $getQuery->toArray();
+        return $getResult;
+    }
+    public function markPatientAbsent($in_clinic_booking_id, $familyMobileNumber,
+        $doctorName, $clinicName, $bookingDate, $inClinicSlotDatesId, $inClinicSlotId) {
+        try {
+
+            DB::beginTransaction();
+            $getQuery = DB::table('dm_in_clinic_booking')
+                ->where('in_clinic_slot_dates_id', $inClinicSlotDatesId)
+                ->where('in_clinic_booking_is_active', 1)
+                ->orderBy('in_clinic_booking_current_slot_position', 'asc')
+                ->get();
+
+            if ($getQuery->count() > 0) {
+                $getResult = $getQuery->toArray();
+                if (count($getQuery) >= 6) {
+
+                    for ($x = 0; $x < 6; $x++) {
+
+                        if ($x == 0) {
+                            DB::table('dm_in_clinic_booking')
+                                ->where('in_clinic_booking_id', $getResult[$x]->in_clinic_booking_id)
+                                ->update([
+                                    'in_clinic_booking_current_slot_position' => 6,
+
+                                ]);
+                        } else {
+                            DB::table('dm_in_clinic_booking')
+                                ->where('in_clinic_booking_id', $getResult[$x]->in_clinic_booking_id)
+                                ->update([
+                                    'in_clinic_booking_current_slot_position' => $getResult[$x]->in_clinic_booking_current_slot_position - 1,
+
+                                ]);
+                        }
+
+                    }
+                    DB::table('dm_in_clinic_booking')
+                        ->where('in_clinic_booking_id', $in_clinic_booking_id)
+                        ->update([
+
+                            'in_clinic_booking_updated_date' => now(),
+                        ]);
+
+                } else if (count($getQuery) == 5) {
+
+                    for ($x = 0; $x < 5; $x++) {
+                        if ($x == 0) {
+                            DB::table('dm_in_clinic_booking')
+                                ->where('in_clinic_booking_id', $getResult[$x]->in_clinic_booking_id)
+                                ->update([
+                                    'in_clinic_booking_current_slot_position' => 5,
+
+                                ]);
+                        } else {
+                            DB::table('dm_in_clinic_booking')
+                                ->where('in_clinic_booking_id', $getResult[$x]->in_clinic_booking_id)
+                                ->update([
+                                    'in_clinic_booking_current_slot_position' => $getResult[$x]->in_clinic_booking_current_slot_position - 1,
+
+                                ]);
+                        }
+
+                    }
+                    DB::table('dm_in_clinic_booking')
+                        ->where('in_clinic_booking_id', $in_clinic_booking_id)
+                        ->update([
+
+                            'in_clinic_booking_updated_date' => now(),
+                        ]);
+
+                } else if (count($getQuery) == 4) {
+
+                    for ($x = 0; $x < 4; $x++) {
+                        if ($x == 0) {
+                            DB::table('dm_in_clinic_booking')
+                                ->where('in_clinic_booking_id', $getResult[$x]->in_clinic_booking_id)
+                                ->update([
+                                    'in_clinic_booking_current_slot_position' => 4,
+
+                                ]);
+                        } else {
+                            DB::table('dm_in_clinic_booking')
+                                ->where('in_clinic_booking_id', $getResult[$x]->in_clinic_booking_id)
+                                ->update([
+                                    'in_clinic_booking_current_slot_position' => $getResult[$x]->in_clinic_booking_current_slot_position - 1,
+
+                                ]);
+                        }
+
+                    }
+                    DB::table('dm_in_clinic_booking')
+                        ->where('in_clinic_booking_id', $in_clinic_booking_id)
+                        ->update([
+
+                            'in_clinic_booking_updated_date' => now(),
+                        ]);
+
+                } else if (count($getQuery) == 3) {
+
+                    for ($x = 0; $x < 3; $x++) {
+                        if ($x == 0) {
+                            DB::table('dm_in_clinic_booking')
+                                ->where('in_clinic_booking_id', $getResult[$x]->in_clinic_booking_id)
+                                ->update([
+                                    'in_clinic_booking_current_slot_position' => 3,
+
+                                ]);
+                        } else {
+                            DB::table('dm_in_clinic_booking')
+                                ->where('in_clinic_booking_id', $getResult[$x]->in_clinic_booking_id)
+                                ->update([
+                                    'in_clinic_booking_current_slot_position' => $getResult[$x]->in_clinic_booking_current_slot_position - 1,
+
+                                ]);
+                        }
+
+                    }
+                    DB::table('dm_in_clinic_booking')
+                        ->where('in_clinic_booking_id', $in_clinic_booking_id)
+                        ->update([
+
+                            'in_clinic_booking_updated_date' => now(),
+                        ]);
+
+                } else if (count($getQuery) == 2) {
+
+                    for ($x = 0; $x < 2; $x++) {
+                        if ($x == 0) {
+                            DB::table('dm_in_clinic_booking')
+                                ->where('in_clinic_booking_id', $getResult[$x]->in_clinic_booking_id)
+                                ->update([
+                                    'in_clinic_booking_current_slot_position' => 2,
+
+                                ]);
+                        } else {
+                            DB::table('dm_in_clinic_booking')
+                                ->where('in_clinic_booking_id', $getResult[$x]->in_clinic_booking_id)
+                                ->update([
+                                    'in_clinic_booking_current_slot_position' => $getResult[$x]->in_clinic_booking_current_slot_position - 1,
+
+                                ]);
+                        }
+
+                    }
+                    DB::table('dm_in_clinic_booking')
+                        ->where('in_clinic_booking_id', $in_clinic_booking_id)
+                        ->update([
+
+                            'in_clinic_booking_updated_date' => now(),
+                        ]);
+
+                } else if (count($getQuery) == 1) {
+
+                    for ($x = 0; $x < 1; $x++) {
+                        if ($x == 0) {
+                            DB::table('dm_in_clinic_booking')
+                                ->where('in_clinic_booking_id', $getResult[$x]->in_clinic_booking_id)
+                                ->update([
+                                    'in_clinic_booking_current_slot_position' => 1,
+
+                                ]);
+                        } else {
+                            DB::table('dm_in_clinic_booking')
+                                ->where('in_clinic_booking_id', $getResult[$x]->in_clinic_booking_id)
+                                ->update([
+                                    'in_clinic_booking_current_slot_position' => $getResult[$x]->in_clinic_booking_current_slot_position - 1,
+
+                                ]);
+                        }
+
+                    }
+                    DB::table('dm_in_clinic_booking')
+                        ->where('in_clinic_booking_id', $in_clinic_booking_id)
+                        ->update([
+
+                            'in_clinic_booking_updated_date' => now(),
+                        ]);
+
+                }
+
+            }
+            DB::unprepared("DROP TEMPORARY TABLE IF EXISTS slot_temp;CREATE TEMPORARY TABLE slot_temp
+AS
+(SELECT  @a:=@a+1 rank,
+        in_clinic_booking_id
+FROM    dm_in_clinic_booking,
+        (SELECT @a:= 0) AS a
+
+        where in_clinic_slot_dates_id=$inClinicSlotDatesId and in_clinic_booking_is_active=1
+        order by in_clinic_booking_current_slot_position asc);
+
+UPDATE dm_in_clinic_booking a, slot_temp b
+SET
+
+
+a.in_clinic_booking_appointment_time =  DATE_ADD(current_time() ,
+INTERVAL ((select in_clinic_slot_interval from dm_in_clinic_slot where in_clinic_slot_id=$inClinicSlotId) * (b.rank-1))  minute) ,
+
+a.in_clinic_booking_reporting_time = date_add( DATE_ADD(current_time() ,
+INTERVAL ((select in_clinic_slot_interval from dm_in_clinic_slot where in_clinic_slot_id=$inClinicSlotId) * (b.rank-1))  minute), INTERVAL -5 minute)
+
+
+WHERE a.in_clinic_booking_id = b.in_clinic_booking_id
+
+");
+
+            DB::commit();
+
+            $resultData['result'] = "success";
+            // $this->cancelBookingSMS($familyMobileNumber, $doctorName, $clinicName, $bookingDate);
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+    }
+
+    // Video Section
+
+    public function getVideoVisitDoctorList($pageNumber, $itemToLoad, $searchText, $cityId, $areaId, $position, $diseaseCategoryId)
+    {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+        if ($areaId == "0") {
+            if ($diseaseCategoryId == "0") {
+                $getQuery = DB::table('dm_doctor_video')
+                    ->leftJoin('dm_doctor', 'dm_doctor.doctor_id', '=', 'dm_doctor_video.doctor_id')
+                    ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_doctor.user_id')
+                    ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+                    ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+
+                    ->whereRaw("FIND_IN_SET($position,dm_doctor.doctor_position)")
+                    ->where('dm_doctor.doctor_is_active', '=', 1)
+                    ->whereRaw("FIND_IN_SET($cityId,city_id)")
+                    ->where('dm_doctor.doctor_full_name', 'like', '%' . $searchText . '%')
+                    ->where('dm_specialization.specialization_type', '=', 1)
+                    ->where('dm_doctor_education.education_type', '=', 1)
+                    ->where('dm_doctor_video.doctor_video_is_active', '=', 1)
+
+                    ->select([
+                        'dm_user.user_id',
+
+                        'dm_doctor.doctor_description',
+                        'dm_doctor.doctor_first_name',
+                        'dm_doctor.doctor_last_name',
+                        'dm_doctor.doctor_full_name',
+                        'dm_doctor.doctor_mobile_number',
+                        'dm_doctor.doctor_profile_image',
+
+                        'dm_specialization.specialization_name',
+                        'dm_doctor.doctor_city',
+                        'dm_doctor.doctor_id',
+                        'dm_doctor.doctor_overall_experience',
+                        'dm_doctor_education.education_name',
+
+                        'dm_doctor_video.video_consultation_fee_is_visible',
+                        'dm_doctor_video.video_consultation_is_avialable',
+                        'dm_doctor_video.video_consultation_fee',
+                        'dm_doctor_video.video_consultation_service_fee',
+                        'dm_doctor_video.video_cancellation_days',
+                        'dm_doctor_video.video_book_before_days',
+                    ])
+                    ->limit($itemToLoad)
+                    ->offset($pageNumber)
+                    ->orderBy('dm_doctor.doctor_full_name')
+
+                    ->get();
+            } else {
+                $getQuery = DB::table('dm_doctor_video')
+                    ->leftJoin('dm_doctor', 'dm_doctor.doctor_id', '=', 'dm_doctor_video.doctor_id')
+                    ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_doctor.user_id')
+                    ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+                    ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+                    ->whereRaw("FIND_IN_SET($position,dm_doctor.doctor_position)")
+                    ->where('dm_doctor.doctor_is_active', '=', 1)
+                    ->whereRaw("FIND_IN_SET($cityId,city_id)")
+                    ->where('dm_doctor.doctor_full_name', 'like', '%' . $searchText . '%')
+                    ->where('dm_specialization.specialization_type', '=', 1)
+                    ->whereRaw("FIND_IN_SET($diseaseCategoryId,disease_category_id)")
+
+                    ->where('dm_doctor_education.education_type', '=', 1)
+
+                    ->select([
+                        'dm_user.user_id',
+
+                        'dm_doctor.doctor_description',
+                        'dm_doctor.doctor_first_name',
+                        'dm_doctor.doctor_last_name',
+                        'dm_doctor.doctor_full_name',
+                        'dm_doctor.doctor_mobile_number',
+                        'dm_doctor.doctor_profile_image',
+
+                        'dm_specialization.specialization_name',
+                        'dm_doctor.doctor_city',
+                        'dm_doctor.doctor_id',
+                        'dm_doctor.doctor_overall_experience',
+                        'dm_doctor_education.education_name',
+
+                        'dm_doctor_video.video_consultation_fee_is_visible',
+                        'dm_doctor_video.video_consultation_is_avialable',
+                        'dm_doctor_video.video_consultation_fee',
+                        'dm_doctor_video.video_consultation_service_fee',
+                        'dm_doctor_video.video_cancellation_days',
+                        'dm_doctor_video.video_book_before_days',
+                    ])
+                    ->limit($itemToLoad)
+                    ->offset($pageNumber)
+                    ->orderBy('dm_doctor.doctor_full_name')
+                    ->get();
+            }
+
+        } else {
+            if ($diseaseCategoryId == "0") {
+                $getQuery = DB::table('dm_doctor_video')
+                    ->leftJoin('dm_doctor', 'dm_doctor.doctor_id', '=', 'dm_doctor_video.doctor_id')
+                    ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_doctor.user_id')
+                    ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+                    ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+                    ->whereRaw("FIND_IN_SET($position,dm_doctor.doctor_position)")
+                    ->where('dm_doctor.doctor_is_active', '=', 1)
+                    ->whereRaw("FIND_IN_SET($cityId,city_id)")
+                    ->whereRaw("FIND_IN_SET($areaId,area_id)")
+                    ->where('dm_doctor.doctor_full_name', 'like', '%' . $searchText . '%')
+                    ->where('dm_specialization.specialization_type', '=', 1)
+                    ->where('dm_doctor_education.education_type', '=', 1)
+                    ->select([
+                        'dm_user.user_id',
+
+                        'dm_doctor.doctor_description',
+                        'dm_doctor.doctor_first_name',
+                        'dm_doctor.doctor_last_name',
+                        'dm_doctor.doctor_full_name',
+                        'dm_doctor.doctor_mobile_number',
+                        'dm_doctor.doctor_profile_image',
+
+                        'dm_specialization.specialization_name',
+                        'dm_doctor.doctor_city',
+                        'dm_doctor.doctor_id',
+                        'dm_doctor.doctor_overall_experience',
+                        'dm_doctor_education.education_name',
+
+                        'dm_doctor_video.video_consultation_fee_is_visible',
+                        'dm_doctor_video.video_consultation_is_avialable',
+                        'dm_doctor_video.video_consultation_fee',
+                        'dm_doctor_video.video_consultation_service_fee',
+                        'dm_doctor_video.video_cancellation_days',
+                        'dm_doctor_video.video_book_before_days',
+                    ])
+                    ->limit($itemToLoad)
+                    ->offset($pageNumber)
+                    ->orderBy('dm_doctor.doctor_full_name')
+                    ->get();
+            } else {
+                $getQuery = DB::table('dm_doctor_video')
+                    ->leftJoin('dm_doctor', 'dm_doctor.doctor_id', '=', 'dm_doctor_video.doctor_id')
+                    ->leftJoin('dm_user', 'dm_user.user_id', '=', 'dm_doctor.user_id')
+                    ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+                    ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+                    ->whereRaw("FIND_IN_SET($position,dm_doctor.doctor_position)")
+                    ->where('dm_doctor.doctor_is_active', '=', 1)
+                    ->whereRaw("FIND_IN_SET($cityId,city_id)")
+                    ->whereRaw("FIND_IN_SET($areaId,area_id)")
+                    ->where('dm_doctor.doctor_full_name', 'like', '%' . $searchText . '%')
+                    ->where('dm_specialization.specialization_type', '=', 1)
+                    ->whereRaw("FIND_IN_SET($diseaseCategoryId,disease_category_id)")
+
+                    ->where('dm_doctor_education.education_type', '=', 1)
+                    ->select([
+                        'dm_user.user_id',
+
+                        'dm_doctor.doctor_description',
+                        'dm_doctor.doctor_first_name',
+                        'dm_doctor.doctor_last_name',
+                        'dm_doctor.doctor_full_name',
+                        'dm_doctor.doctor_mobile_number',
+                        'dm_doctor.doctor_profile_image',
+
+                        'dm_specialization.specialization_name',
+                        'dm_doctor.doctor_city',
+                        'dm_doctor.doctor_id',
+                        'dm_doctor.doctor_overall_experience',
+                        'dm_doctor_education.education_name',
+
+                        'dm_doctor_video.video_consultation_fee_is_visible',
+                        'dm_doctor_video.video_consultation_is_avialable',
+                        'dm_doctor_video.video_consultation_fee',
+                        'dm_doctor_video.video_consultation_service_fee',
+                        'dm_doctor_video.video_cancellation_days',
+                        'dm_doctor_video.video_book_before_days',
+                    ])
+                    ->limit($itemToLoad)
+                    ->offset($pageNumber)
+                    ->orderBy('dm_doctor.doctor_full_name')
+                    ->get();
+            }
+
+        }
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+    public function getVideoBookingSlotDates($doctorId)
+    {
+        $currentDate = date('Y-m-d');
+        $getQuery = DB::select("select `dm_doctor`.`doctor_full_name`,
+        `dm_doctor`.`doctor_first_name`,`dm_doctor`.`doctor_last_name`,
+        `dm_doctor`.`doctor_id`, `dm_doctor`.`doctor_profile_image`,
+        DATE_FORMAT(dm_video_slot_dates.video_slot_dates, '%D %M %Y')
+        as video_slot_dates, DATE_FORMAT(dm_video_slot_dates.video_slot_dates, '%Y-%m-%d')
+        as video_slot_dates_another_date_format, DATE_FORMAT(now(), '%Y-%m-%d')
+        as server_current_date,`dm_video_slot_dates`.`video_slot_dates_id`, `dm_video_slot`.`video_slot_id`,
+        `dm_video_slot`.`slot_name_id`, IF(sum(distinct dm_video_slot_dates.video_max_slot_position_datewise)>0, sum(distinct dm_video_slot_dates.video_max_slot_position_datewise), 0) as video_max_slot_position_datewise,
+        (select COUNT(dm_video_booking.video_slot_dates_id) from dm_video_booking where video_booking_is_active=1
+        and doctor_id=dm_doctor.doctor_id and video_slot_dates_id= dm_video_slot_dates.video_slot_dates_id) AS booked_slot
+         from `dm_video_slot_dates` left join `dm_video_slot`
+         on `dm_video_slot`.`video_slot_id` = `dm_video_slot_dates`.`video_slot_id`
+         left join `dm_doctor` on `dm_doctor`.`doctor_id` = `dm_video_slot`.`doctor_id`
+         left join dm_video_booking on dm_video_booking.video_slot_dates_id = dm_video_slot_dates.video_slot_dates_id
+         where `dm_video_slot_dates`.`video_slot_dates_is_active` = 1
+         and `dm_video_slot_dates`.`video_slot_dates` >= '$currentDate'
+         and `dm_video_slot`.`doctor_id` = $doctorId
+         group by `dm_video_slot_dates`.`video_slot_dates`");
+        return $getQuery;
+
+    }
+
+    // To notify customer about doctor video date slot
+    public function notifyCustomerAboutDoctorVideoDateSlot(
+        $doctorId, $userId) {
+        try {
+            DB::beginTransaction();
+            DB::table('dm_notify_customer_about_doctor_video_date_slot')
+                ->updateOrInsert(
+                    ['user_id' => $userId,
+                        'doctor_id' => $doctorId,
+                    ],
+                    ['notify_customer_about_doctor_video_date_slot_created_at' => now()]
+                );
+
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+    }
+
+    // To get the video slot id and position date wise
+    public function getVideoSlotIdPositionDateWise($videoSlotBookingDate, $videoSlotId, $doctorId)
+    {
+        $videoSlotBookingDate = date("Y-m-d", strtotime($videoSlotBookingDate));
+        $query="select dm_video_slot.video_slot_id,
+        dm_video_slot.slot_name_id,dm_video_slot.doctor_id,
+        dm_video_slot_dates. video_slot_dates_id,
+        dm_video_slot_dates.video_max_slot_position_datewise,
+        dm_slot_name.slot_name,time_format(dm_video_slot_dates.video_slot_start_time,'%h:%i %p') video_slot_start_time,
+		time_format(dm_video_slot_dates.video_slot_end_time,'%h:%i %p' ) video_slot_end_time
+
+        from dm_video_slot_dates left join dm_video_slot on
+         dm_video_slot.video_slot_id=dm_video_slot_dates.video_slot_id
+         join dm_slot_name on dm_video_slot.slot_name_id=dm_slot_name.slot_name_id
+
+
+        where dm_video_slot_dates.video_slot_dates='$videoSlotBookingDate' and
+        dm_video_slot_dates.video_slot_dates_is_active=1
+        and
+
+        dm_video_slot.doctor_id=$doctorId
+        ";
+        
+        $getQuery = DB::select($query);
+        return $getQuery;
+
+    }
+
+    public function getVideoBookingSlotPosition($videoSlotDateId, $videoSlotId, $videoBookingDate, $slotNameId,
+        $doctorId, $videoMaxSlotPositionDateWise) {
+        $videoBookingDate = date("Y-m-d", strtotime($videoBookingDate));
+        //DB::enableQueryLog();
+        $getQuery = DB::select("select dm_video_slot_time_date_wise.video_slot_time_date_wise_id,
+        time_format( dm_video_slot_time_date_wise.video_slot_start_time,'%h:%i %p' ) video_slot_start_time,
+         time_format( dm_video_slot_time_date_wise.video_slot_end_time,'%h:%i %p' ) video_slot_end_time,
+         ifnull( dm_video_booking.video_start_time,  'Free') as video_slot_free,
+   dm_video_booking.video_booking_date,
+     dm_video_booking.video_slot_id,
+     (select distinct dm_video_slot_dates.video_booking_available
+        from dm_video_slot_dates
+        where dm_video_slot_dates.video_slot_id=$videoSlotId
+        and dm_video_slot_dates.video_slot_dates='$videoBookingDate'
+        )
+        as is_booking_available
+
+        from dm_video_slot_time_date_wise
+           left join dm_video_booking on
+         dm_video_slot_time_date_wise.video_slot_time_date_wise_id
+         = dm_video_booking.video_slot_time_date_wise_id
+
+         and dm_video_booking.video_booking_date='$videoBookingDate'
+         and dm_video_booking.slot_name_id=$slotNameId and
+		 dm_video_slot_time_date_wise.doctor_id=$doctorId and
+         dm_video_booking.video_slot_id=$videoSlotId
+
+         and dm_video_booking.video_booking_is_active != 2
+
+    where dm_video_slot_time_date_wise.video_slot_dates_id='$videoSlotDateId'
+    and
+
+		 dm_video_slot_time_date_wise.doctor_id=$doctorId
+    and dm_video_slot_time_date_wise.video_slot_time_date_wise_is_active=1
+
+         ");
+    //     $query = DB::getQueryLog();
+    // $query = end($query);
+    // return $query;
+    // dd($query);
+        return $getQuery;
+
+    }
+
+    public function saveVideoBooking($videoSlotTimeDateWiseId, $slotDateId, $doctorId,
+        $slotNameId, $slotId, $bookingMadeByRoleId, $bookingMadeByUserId, $bookingMadeForFamilyId,
+        $isBookingDoneForSelf, $bookingDate, $videoAppointmentFee, $videoServiceFee,
+        $videoCancellationDays, $specialization_disease_mapping_id, $disease_name, $videoStartTime,
+        $videoEndTime, $paymentMethodId, $rewardId, $rewardTransactionId, $offerId, $paidAmount, $offerPrice, $remark) {
+        try {
+
+            DB::beginTransaction();
+
+            $getDoctorQuery = DB::table('dm_doctor')->where('doctor_is_active', 1)
+                ->where('doctor_id', $doctorId)
+                ->get();
+            $getDoctorQueryResult = $getDoctorQuery->toArray();
+
+            $getUserQuery = DB::table('dm_family_member')->where('family_member_is_active', 1)
+                ->where('family_member_id', $bookingMadeForFamilyId)
+                ->get();
+            $getUserQueryResult = $getUserQuery->toArray();
+
+            $bookingCodePrefix = "VA" . date("ym");
+            $bookingCode = IdGenerator::generate(['table' => 'dm_video_booking', 'field' => 'video_booking_code', 'length' => 12, 'prefix' => $bookingCodePrefix,
+                'reset_on_prefix_change' => true]);
+
+            $transactionCodePrefix = "VT" . date("ym");
+            $transctionCode = IdGenerator::generate(['table' => 'dm_video_booking_transaction', 'field' => 'video_transaction_code', 'length' => 12, 'prefix' => $transactionCodePrefix,
+                'reset_on_prefix_change' => true]);
+
+            $bookingDate = date("Y-m-d", strtotime($bookingDate));
+            $getGstQuery = DB::table('dm_gst')->where('gst_applicable_for', 1)
+                ->where('gst_is_active', 1)
+                ->whereRaw('now() between gst_valid_start_date and gst_valid_end_date')
+                ->get();
+            $getGstResult = $getGstQuery->toArray();
+
+            $getBookingQuery = DB::table('dm_video_booking')->where('video_slot_dates_id', $slotDateId)
+                 ->where('video_slot_time_date_wise_id', $videoSlotTimeDateWiseId)
+                ->where('video_booking_made_for_family_id', $bookingMadeForFamilyId)
+                ->where('slot_name_id', $slotNameId)
+                ->where('video_booking_is_active', 1)
+                ->where('doctor_id', $doctorId)
+                
+                ->get();
+                
+            if ($getBookingQuery->count() == 0) {
+
+                $getFamilyQuery = DB::table('dm_video_booking')->where('video_slot_dates_id', $slotDateId)
+                    ->where('video_booking_made_for_family_id', $bookingMadeForFamilyId)
+                    ->where('video_booking_is_active', 1)
+                    ->where('doctor_id', $doctorId)
+                    ->where('video_booking_date',$bookingDate)
+                    ->get();
+
+                if ($getFamilyQuery->count() == 0) {
+                $insertId = DB::table('dm_video_booking')->insertGetId(
+                    [
+                        'video_slot_time_date_wise_id' => $videoSlotTimeDateWiseId,
+                        'video_slot_dates_id' => $slotDateId,
+                        'doctor_id' => $doctorId,
+                        'slot_name_id' => $slotNameId,
+                        'video_slot_id' => $slotId,
+                        'video_booking_code' => $bookingCode,
+                        'video_booking_made_by_role_id' => $bookingMadeByRoleId,
+                        'video_booking_made_by_user_id' => $bookingMadeByUserId,
+                        'video_booking_made_for_family_id' => $bookingMadeForFamilyId,
+                        'video_is_booking_done_for_self' => $isBookingDoneForSelf,
+                        'video_booking_date' => $bookingDate,
+                        'video_price' => $videoAppointmentFee,
+                        'video_service_fee' => $videoServiceFee,
+                        'video_booking_cancellation_days' => $videoCancellationDays,
+                        'specialization_disease_mapping_id' => $specialization_disease_mapping_id,
+                        'disease_name' => $disease_name,
+                        'remark' =>$remark,
+                        'video_start_time' => $videoStartTime,
+                        'video_end_time' => $videoEndTime,
+                    ]
+                );
+
+                DB::table('dm_video_booking_transaction')->insertGetId(
+                    [
+                        'video_booking_id' => $insertId,
+                        'video_slot_id' => $slotId,
+                        'video_slot_dates_id' => $slotDateId,
+                        'slot_name_id' => $slotNameId,
+                        'doctor_id' => $doctorId,
+                        'video_transaction_code' => $transctionCode,
+                        'payment_method_id' => $paymentMethodId,
+                        'reward_id' => $rewardId,
+                        'reward_transaction_id' => $rewardTransactionId,
+                        'offer_id' => $offerId,
+                        'video_booking_made_by_role_id' => $bookingMadeByRoleId,
+                        'video_booking_made_by_user_id' => $bookingMadeByUserId,
+                        'video_booking_made_for_family_id' => $bookingMadeForFamilyId,
+                        'video_is_booking_done_for_self' => $isBookingDoneForSelf,
+                        'video_booking_start_time' => $videoStartTime,
+                        'video_booking_end_time' => $videoEndTime,
+                        'video_booking_date' => $bookingDate,
+                        'video_price' => $videoAppointmentFee,
+                        'video_booking_paid_amount' => $paidAmount,
+                        'video_booking_offer_price' => $videoServiceFee,
+                        'video_booking_gst_price' => $paidAmount * $getGstResult[0]->gst_percentage / 100,
+                        'video_booking_cgst_price' => $paidAmount * $getGstResult[0]->gst_cgst_percentage / 100,
+                        'video_booking_sgst_price' => $paidAmount * $getGstResult[0]->gst_sgst_percentage / 100,
+                        'video_booking_igst_price' => $paidAmount * $getGstResult[0]->gst_igst_percentage / 100,
+                        'video_service_fee' => $videoServiceFee,
+
+                    ]
+                );
+                $smsBookingTextForCustomer = "Dear " . $getUserQueryResult[0]->family_member_full_name . " your booking has been confirmed for Dr.  " . $getDoctorQueryResult[0]->doctor_full_name . " dated " . $bookingDate . "";
+                DB::table('dm_sms_schedule_details')->insertGetId(
+                    [
+                        'mobile_number' => $getUserQueryResult[0]->family_member_mobile_number,
+                        'sms_text' => $smsBookingTextForCustomer,
+                        'sms_type' => 'Appointment Booking',
+
+                    ]
+                );
+                // $smsBookingTextForClinic = "Booking has made by " . $getUserQueryResult[0]->family_member_full_name . " for Dr.  " . $getDoctorQueryResult[0]->doctor_full_name . " dated " . $bookingDate . "";
+                // DB::table('dm_sms_schedule_details')->insertGetId(
+                //     [
+                //         'mobile_number' => $getClinicQueryResult[0]->clinic_mobile_number,
+                //         'sms_text' => $smsBookingTextForClinic,
+                //         'sms_type' => 'Appointment Booking',
+
+                //     ]
+                // );
+
+                DB::commit();
+                $resultData['result'] = "success";
+                $resultData['bookingCode'] = $bookingCode;
+                $resultData['bookingId'] = $insertId;
+                $resultData['bookingType'] = 1;
+
+                } else {
+                $resultData['result'] = "bookedself";
+                }
+
+            } else {
+                $resultData['result'] = "booked";
+            }
+
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+    }
+
+    public function getVideoBookingList($bookigDoneByUserId,
+        $bookigStatus, $pageNumber, $itemToLoad) {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getFamilyQueryList = DB::table('dm_family_member')
+            ->select([
+                DB::raw("(SELECT group_concat(family_member_id)
+                FROM dm_family_member
+                 where family_member_is_active=1 and user_id=$bookigDoneByUserId
+        ) as family_member_id"),
+
+            ])
+            ->where('user_id', '=', $bookigDoneByUserId)->get();
+
+            $getQuery = DB::table('dm_video_booking')
+            ->leftJoin('dm_video_slot', 'dm_video_slot.video_slot_id', '=', 'dm_video_booking.video_slot_id')
+            ->leftJoin('dm_video_slot_dates', 'dm_video_slot_dates.video_slot_dates_id', '=', 'dm_video_booking.video_slot_dates_id')
+            ->leftJoin('dm_slot_name', 'dm_slot_name.slot_name_id', '=', 'dm_video_booking.slot_name_id')
+            ->leftJoin('dm_doctor', 'dm_doctor.doctor_id', '=', 'dm_video_booking.doctor_id')
+            ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+            ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+
+            ->leftJoin('dm_family_member', 'dm_family_member.family_member_id', '=', 'dm_video_booking.video_booking_made_for_family_id')
+
+            ->whereIn('dm_video_booking.video_booking_made_for_family_id', explode(',', $getFamilyQueryList[0]->family_member_id))
+            ->where('dm_video_booking.video_booking_is_active', '=', $bookigStatus)
+
+            ->where('dm_specialization.specialization_type', '=', 1)
+            ->where('dm_doctor_education.education_type', '=', 1);
+            
+            if($bookigStatus==2)
+            {
+            $getQuery = $getQuery->select([
+
+                'dm_doctor.doctor_id',
+                'dm_doctor.doctor_first_name',
+                'dm_doctor.doctor_last_name',
+                'dm_doctor.doctor_full_name',
+                'dm_doctor.doctor_mobile_number',
+                'dm_doctor.doctor_profile_image',
+                'dm_specialization.specialization_name',
+                'dm_doctor.doctor_overall_experience',
+                'dm_doctor_education.education_name',
+                     'dm_doctor.user_id as doctor_user_id',
+                       'dm_doctor.doctor_device_token',
+
+                'dm_family_member.family_member_id',
+                    'dm_family_member.user_id as family_user_id',
+                'dm_family_member.family_member_first_name',
+                'dm_family_member.family_member_last_name',
+                'dm_family_member.family_member_full_name',
+                'dm_family_member.family_member_mobile_number',
+                'dm_family_member.family_member_profile_image',
+                'dm_family_member.is_self',
+                    'dm_family_member.user_id as family_user_id',
+                  'dm_family_member.family_member_token as patient_device_token',
+
+                'dm_video_slot.video_slot_id',
+
+                'dm_video_slot_dates.video_slot_dates_id',
+
+                'dm_slot_name.slot_name_id',
+                'dm_slot_name.slot_name',
+
+                'dm_video_booking.video_booking_id',
+                'dm_video_booking.video_slot_time_date_wise_id',
+                'dm_video_booking.video_booking_code',
+                'dm_video_booking.video_booking_made_by_role_id',
+                'dm_video_booking.video_booking_made_by_user_id',
+                'dm_video_booking.video_booking_made_for_family_id',
+                'dm_video_booking.video_is_booking_done_for_self',
+                'dm_video_booking.video_start_time',
+                'dm_video_booking.video_end_time',
+                'dm_video_booking.video_price',
+                'dm_video_booking.video_service_fee',
+                'dm_video_booking.video_booking_is_active',
+                'dm_video_booking.video_booking_cancellation_days',
+                'dm_video_booking.video_booking_updated_date',
+                DB::raw('if(DATE_sub(DATE_FORMAT(dm_video_booking.video_booking_date,"%Y-%m-%d"),
+INTERVAL dm_video_booking.video_booking_cancellation_days DAY)>=date_format(now(),"%Y-%m-%d"),"1","1") as "booking_cancel_date_check"'),
+
+                DB::raw('DATE_FORMAT(dm_video_booking.video_booking_date, "%d-%m-%Y") as video_booking_date', "%d-%m-%Y"),
+
+                  DB::raw('if(DATE_ADD(date_format(dm_video_booking.video_booking_updated_date,"%Y-%m-%d"), interval 7 day)<=date_format(now(),"%Y-%m-%d"),"0","1") as "is_chat_window_visible"'),
+                DB::raw('if(DATE_ADD(date_format(dm_video_booking.video_booking_date,"%Y-%m-%d"), interval 7 day)<=date_format(now(),"%Y-%m-%d"),"0","0") as "upload_report_view"'),
+              
+            ]);
+            }
+            else
+            {
+                $getQuery = $getQuery->select([
+
+                'dm_doctor.doctor_id',
+                'dm_doctor.doctor_first_name',
+                'dm_doctor.doctor_last_name',
+                'dm_doctor.doctor_full_name',
+                'dm_doctor.doctor_mobile_number',
+                'dm_doctor.doctor_profile_image',
+                'dm_specialization.specialization_name',
+                'dm_doctor.doctor_overall_experience',
+                'dm_doctor_education.education_name',
+                     'dm_doctor.user_id as doctor_user_id',
+                       'dm_doctor.doctor_device_token',
+
+                'dm_family_member.family_member_id',
+                    'dm_family_member.user_id as family_user_id',
+                'dm_family_member.family_member_first_name',
+                'dm_family_member.family_member_last_name',
+                'dm_family_member.family_member_full_name',
+                'dm_family_member.family_member_mobile_number',
+                'dm_family_member.family_member_profile_image',
+                'dm_family_member.is_self',
+                    'dm_family_member.user_id as family_user_id',
+                  'dm_family_member.family_member_token as patient_device_token',
+
+                'dm_video_slot.video_slot_id',
+
+                'dm_video_slot_dates.video_slot_dates_id',
+
+                'dm_slot_name.slot_name_id',
+                'dm_slot_name.slot_name',
+
+                'dm_video_booking.video_booking_id',
+                'dm_video_booking.video_slot_time_date_wise_id',
+                'dm_video_booking.video_booking_code',
+                'dm_video_booking.video_booking_made_by_role_id',
+                'dm_video_booking.video_booking_made_by_user_id',
+                'dm_video_booking.video_booking_made_for_family_id',
+                'dm_video_booking.video_is_booking_done_for_self',
+                'dm_video_booking.video_start_time',
+                'dm_video_booking.video_end_time',
+                'dm_video_booking.video_price',
+                'dm_video_booking.video_service_fee',
+                'dm_video_booking.video_booking_is_active',
+                'dm_video_booking.video_booking_cancellation_days',
+                'dm_video_booking.video_booking_updated_date',
+                DB::raw('if(DATE_sub(DATE_FORMAT(dm_video_booking.video_booking_date,"%Y-%m-%d"),
+INTERVAL dm_video_booking.video_booking_cancellation_days DAY)>=date_format(now(),"%Y-%m-%d"),"1","1") as "booking_cancel_date_check"'),
+
+                DB::raw('DATE_FORMAT(dm_video_booking.video_booking_date, "%d-%m-%Y") as video_booking_date', "%d-%m-%Y"),
+
+                  DB::raw('if(DATE_ADD(date_format(dm_video_booking.video_booking_updated_date,"%Y-%m-%d"), interval 7 day)<=date_format(now(),"%Y-%m-%d"),"0","1") as "is_chat_window_visible"'),
+                DB::raw('if(DATE_ADD(date_format(dm_video_booking.video_booking_date,"%Y-%m-%d"), interval 7 day)<=date_format(now(),"%Y-%m-%d"),"0","1") as "upload_report_view"'),
+              
+            ]);
+            }
+            
+            
+            if($bookigStatus==1)
+            {
+                 //$getQuery = $getQuery->where('dm_video_booking.video_booking_date', '>=', date("Y-m-d"));
+            }
+
+           $getQuery = $getQuery->limit($itemToLoad)->offset($pageNumber)->orderBy('dm_video_booking.video_booking_date', 'desc')->get();
+
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+    public function cancelVideoBooking($video_booking_id, $video_slot_time_date_wise_id,
+        $familyMobileNumber, $doctorName, $bookingDate, $videoSlotDatesId, $videoSlotId) {
+        try {
+
+            DB::beginTransaction();
+
+            // only cancel the booking
+            DB::table('dm_video_booking')
+                ->where('video_booking_id', $video_booking_id)
+                ->update([
+                    'video_booking_is_active' => 2, //rejected
+                    'video_booking_updated_date' => now(),
+                ]);
+
+            DB::table('dm_video_booking_transaction')
+                ->where('video_booking_id', $video_booking_id)
+                ->update([
+                    'video_booking_transaction_is_active' => 2, //rejected
+                    'video_booking_transaction_update_date' => now(),
+
+                ]);
+
+            $smsCancelBooking = "Your booking has been cancelled for Dr.  " . $doctorName . " dated " . $bookingDate . " .";
+            DB::table('dm_sms_schedule_details')->insertGetId(
+                [
+                    'mobile_number' => $familyMobileNumber,
+                    'sms_text' => $smsCancelBooking,
+                    'sms_type' => 'Cancel Booking',
+
+                ]
+            );
+
+            DB::commit();
+
+            $resultData['result'] = "success";
+            // $this->cancelBookingSMS($familyMobileNumber, $doctorName, $clinicName, $bookingDate);
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+    }
+
+    public function saveVideoBookingByClinic($videoSlotTimeDateWiseId, $familyId, $patientFirstName, $patientLastName,
+        $patientMobileNumber, $isExistingPatient, $videoSlotId, $videoSlotDateId,
+        $slotNameId, $doctorId, $bookingMadeByRoleId, $bookingMadeByUserId,
+        $isBookingDoneForSelf, $videoStartTime, $videoEndTime,
+        $bookingDate, $videoPrice, $paymentMethodId,
+        $rewardId, $rewardTransactionId, $offerId, $paidAmount, $offerPrice, $videoServiceFee,
+        $videoCancellationDays, $specialization_disease_mapping_id, $disease_name, $source
+    ) {
+        try {
+
+            DB::beginTransaction();
+
+            $getDoctorQuery = DB::table('dm_doctor')->where('doctor_is_active', 1)
+                ->where('doctor_id', $doctorId)
+                ->get();
+            $getDoctorQueryResult = $getDoctorQuery->toArray();
+            if ($isExistingPatient == "1") {
+
+                $getUserQuery = DB::table('dm_family_member')->where('family_member_is_active', 1)
+                    ->where('family_member_id', $familyId)
+                    ->get();
+                $getUserQueryResult = $getUserQuery->toArray();
+
+                $getRoleQuery = DB::table('dm_user')
+                    ->where('dm_user.user_mobile', '=', $patientMobileNumber)
+                    ->get();
+                $getRoleResult = $getRoleQuery->toArray();
+                if ($getRoleResult[0]->role_id == "1") {
+
+                    $bookingCodePrefix = "VA" . date("ym");
+                    $bookingCode = IdGenerator::generate(['table' => 'dm_video_booking', 'field' => 'video_booking_code', 'length' => 12, 'prefix' => $bookingCodePrefix,
+                        'reset_on_prefix_change' => true]);
+
+                    $transactionCodePrefix = "VT" . date("ym");
+                    $transctionCode = IdGenerator::generate(['table' => 'dm_video_booking_transaction', 'field' => 'video_transaction_code', 'length' => 12, 'prefix' => $transactionCodePrefix,
+                        'reset_on_prefix_change' => true]);
+
+                    $bookingDate = date("Y-m-d", strtotime($bookingDate));
+                    $getGstQuery = DB::table('dm_gst')->where('gst_applicable_for', 1)
+                        ->where('gst_is_active', 1)
+                        ->whereRaw('now() between gst_valid_start_date and gst_valid_end_date')
+                        ->get();
+                    $getGstResult = $getGstQuery->toArray();
+
+                    $getBookingQuery = DB::table('dm_video_booking')->where('video_slot_dates_id', $videoSlotDateId)
+                        ->where('video_slot_time_date_wise_id', $videoSlotTimeDateWiseId)
+                        ->where('slot_name_id', $slotNameId)
+                        ->where('video_booking_is_active', 1)
+                        ->where('doctor_id', $doctorId)
+                        ->where('video_booking_date',$bookingDate)
+                        //->where('video_booking_made_by_user_id', $bookingMadeByUserId)
+                        ->get();
+                        
+                    if ($getBookingQuery->count() == 0) {
+
+                        $getFamilyQuery = DB::table('dm_video_booking')->where('video_slot_dates_id', $videoSlotDateId)
+                            ->where('video_booking_made_for_family_id', $familyId)
+                            ->where('video_booking_is_active', 1)
+                            ->where('doctor_id', $doctorId)
+                           
+                            ->get();
+
+                         if ($getFamilyQuery->count() == 0) {
+                        $insertId = DB::table('dm_video_booking')->insertGetId(
+                            [
+                                'video_slot_time_date_wise_id' => $videoSlotTimeDateWiseId,
+                                'video_slot_dates_id' => $videoSlotDateId,
+                                'doctor_id' => $doctorId,
+                                'slot_name_id' => $slotNameId,
+                                'video_slot_id' => $videoSlotId,
+                                'video_booking_code' => $bookingCode,
+                                'video_booking_made_by_role_id' => $bookingMadeByRoleId,
+                                'video_booking_made_by_user_id' => $bookingMadeByUserId,
+                                'video_booking_made_for_family_id' => $familyId,
+                                'video_is_booking_done_for_self' => $isBookingDoneForSelf,
+                                'video_booking_date' => $bookingDate,
+                                'video_price' => $videoPrice,
+                                'video_service_fee' => $videoServiceFee,
+                                'video_booking_cancellation_days' => $videoCancellationDays,
+                                'specialization_disease_mapping_id' => $specialization_disease_mapping_id,
+                                'disease_name' => $disease_name,
+                                'video_start_time' => $videoStartTime,
+                                'video_end_time' => $videoEndTime,
+                                'source' => $source,
+                                
+                            ]
+                        );
+
+                        DB::table('dm_video_booking_transaction')->insertGetId(
+                            [
+                                'video_booking_id' => $insertId,
+                                'video_slot_id' => $videoSlotId,
+                                'video_slot_dates_id' => $videoSlotDateId,
+                                'slot_name_id' => $slotNameId,
+                                'doctor_id' => $doctorId,
+                                'video_transaction_code' => $transctionCode,
+                                'payment_method_id' => $paymentMethodId,
+                                'reward_id' => $rewardId,
+                                'reward_transaction_id' => $rewardTransactionId,
+                                'offer_id' => $offerId,
+                                'video_booking_made_by_role_id' => $bookingMadeByRoleId,
+                                'video_booking_made_by_user_id' => $bookingMadeByUserId,
+                                'video_booking_made_for_family_id' => $familyId,
+                                'video_is_booking_done_for_self' => $isBookingDoneForSelf,
+                                'video_booking_start_time' => $videoStartTime,
+                                'video_booking_end_time' => $videoEndTime,
+                                'video_booking_date' => $bookingDate,
+                                'video_price' => $videoPrice,
+                                'video_booking_paid_amount' => $paidAmount,
+                                'video_booking_offer_price' => $videoServiceFee,
+                                'video_booking_gst_price' => $paidAmount * $getGstResult[0]->gst_percentage / 100,
+                                'video_booking_cgst_price' => $paidAmount * $getGstResult[0]->gst_cgst_percentage / 100,
+                                'video_booking_sgst_price' => $paidAmount * $getGstResult[0]->gst_sgst_percentage / 100,
+                                'video_booking_igst_price' => $paidAmount * $getGstResult[0]->gst_igst_percentage / 100,
+                                'video_service_fee' => $videoServiceFee,
+
+                            ]
+                        );
+
+                        $smsBookingTextForCustomer = "Dear " . $getUserQueryResult[0]->family_member_full_name . " your booking has been confirmed for Dr.  " . $getDoctorQueryResult[0]->doctor_full_name . " dated " . $bookingDate . "";
+                        DB::table('dm_sms_schedule_details')->insertGetId(
+                            [
+                                'mobile_number' => $getUserQueryResult[0]->family_member_mobile_number,
+                                'sms_text' => $smsBookingTextForCustomer,
+                                'sms_type' => 'Appointment Booking',
+
+                            ]
+                        );
+                        // $smsBookingTextForClinic = "Booking has made by " . $getUserQueryResult[0]->family_member_full_name . " for Dr.  " . $getDoctorQueryResult[0]->doctor_full_name . " dated " . $bookingDate . "";
+                        // DB::table('dm_sms_schedule_details')->insertGetId(
+                        //     [
+                        //         'mobile_number' => $getClinicQueryResult[0]->clinic_mobile_number,
+                        //         'sms_text' => $smsBookingTextForClinic,
+                        //         'sms_type' => 'Appointment Booking',
+
+                        //     ]
+                        // );
+                        DB::commit();
+                        $resultData['result'] = "success";
+                        $resultData['bookingCode'] = $bookingCode;
+                        $resultData['bookingId'] = $insertId;
+                        $resultData['bookingType'] = 1;
+                
+                        } else {
+                        $resultData['result'] = "bookedself";
+                        }
+
+                    } else {
+                        $resultData['result'] = "booked";
+                    }
+
+                } else {
+                    $resultData['result'] = "onlyforpatient";
+                }
+
+            } else {
+                // register with patient profile
+                     $fetch_country_id=   DB::table('dm_user')->select('country_id','user_id')->where('user_id',$bookingMadeByUserId)->first();
+     
+     
+                $password = "123456"; //mt_rand(100000, 999999);
+                $customerId = DB::table('dm_user')->insertGetId(
+                    [
+                        'role_id' => 1,
+                        'country_id'=>$fetch_country_id->country_id,
+                        'user_mobile' => $patientMobileNumber,
+                        'password' => bcrypt($password),
+                        'password_normal' => $password,
+
+                    ]
+                );
+
+                DB::table('dm_customer_personal_details')->insertGetId(
+                    [
+                        'user_id' => $customerId,
+                        'customer_first_name' => ucfirst($patientFirstName),
+                        'customer_last_name' => ucfirst($patientLastName),
+                        'customer_full_name' => ucfirst($patientFirstName) . " " . ucfirst($patientLastName),
+                        'customer_mobile_number' => $patientMobileNumber,
+                    ]
+                );
+
+                $familyId = DB::table('dm_family_member')->insertGetId(
+                    [
+
+                        'family_member_first_name' => ucfirst($patientFirstName),
+                        'family_member_last_name' => ucfirst($patientLastName),
+                        'family_member_full_name' => ucfirst($patientFirstName) . " " . ucfirst($patientLastName),
+                        'family_member_mobile_number' => $patientMobileNumber,
+                        'user_id' => $customerId,
+                        'is_self' => 1,
+                    ]
+                );
+
+                $getRewardAmountQuery = DB::table('dm_reward_amount_description')->where('reward_amount_description_id', 1)->get();
+                $saveRewardQuery = DB::table('dm_reward')->insertGetId(
+                    [
+                        'user_id' => $customerId,
+                        'reward_balance' => $getRewardAmountQuery[0]->reward_amount,
+
+                    ]
+                );
+
+                DB::table('dm_reward_transaction')->insertGetId(
+                    [
+                        'reward_id' => $saveRewardQuery,
+                        'user_id' => $customerId,
+                        'reward_transaction_balance' => $getRewardAmountQuery[0]->reward_amount,
+                        'reward_transaction_remarks' => $getRewardAmountQuery[0]->reward_amount_description,
+                        'is_reward_balance_added' => 1,
+
+                    ]
+                );
+
+                $bookingCodePrefix = "VA" . date("ym");
+                $bookingCode = IdGenerator::generate(['table' => 'dm_video_booking', 'field' => 'video_booking_code', 'length' => 12, 'prefix' => $bookingCodePrefix,
+                    'reset_on_prefix_change' => true]);
+
+                $transactionCodePrefix = "VT" . date("ym");
+                $transctionCode = IdGenerator::generate(['table' => 'dm_video_booking_transaction', 'field' => 'video_transaction_code', 'length' => 12, 'prefix' => $transactionCodePrefix,
+                    'reset_on_prefix_change' => true]);
+
+                $bookingDate = date("Y-m-d", strtotime($bookingDate));
+                $getGstQuery = DB::table('dm_gst')->where('gst_applicable_for', 1)
+                    ->where('gst_is_active', 1)
+                    ->whereRaw('now() between gst_valid_start_date and gst_valid_end_date')
+                    ->get();
+                $getGstResult = $getGstQuery->toArray();
+
+                $getBookingQuery = DB::table('dm_video_booking')->where('video_slot_dates_id', $videoSlotDateId)
+                    ->where('video_slot_time_date_wise_id', $videoSlotTimeDateWiseId)
+                    ->where('slot_name_id', $slotNameId)
+                    ->where('video_booking_is_active', 1)
+                    ->where('doctor_id', $doctorId)
+                    ->get();
+
+                if ($getBookingQuery->count() == 0) {
+
+                    $getFamilyQuery = DB::table('dm_video_booking')->where('video_slot_dates_id', $videoSlotDateId)
+                        ->where('video_booking_made_for_family_id', $familyId)
+                        ->where('video_booking_is_active', 1)
+                        ->where('doctor_id', $doctorId)
+                        ->get();
+
+                    // if ($getFamilyQuery->count() == 0) {
+                    $insertId = DB::table('dm_video_booking')->insertGetId(
+                        [
+                            'video_slot_time_date_wise_id' => $videoSlotTimeDateWiseId,
+                            'video_slot_dates_id' => $videoSlotDateId,
+                            'doctor_id' => $doctorId,
+                            'slot_name_id' => $slotNameId,
+                            'video_slot_id' => $videoSlotId,
+                            'video_booking_code' => $bookingCode,
+                            'video_booking_made_by_role_id' => $bookingMadeByRoleId,
+                            'video_booking_made_by_user_id' => $bookingMadeByUserId,
+                            'video_booking_made_for_family_id' => $familyId,
+                            'video_is_booking_done_for_self' => $isBookingDoneForSelf,
+                            'video_booking_date' => $bookingDate,
+                            'video_price' => $videoPrice,
+                            'video_service_fee' => $videoServiceFee,
+                            'video_booking_cancellation_days' => $videoCancellationDays,
+                            'specialization_disease_mapping_id' => $specialization_disease_mapping_id,
+                            'disease_name' => $disease_name,
+                            'video_start_time' => $videoStartTime,
+                            'video_end_time' => $videoEndTime,
+
+                        ]
+                    );
+
+                    DB::table('dm_video_booking_transaction')->insertGetId(
+                        [
+                            'video_booking_id' => $insertId,
+                            'video_slot_id' => $videoSlotId,
+                            'video_slot_dates_id' => $videoSlotDateId,
+                            'slot_name_id' => $slotNameId,
+                            'doctor_id' => $doctorId,
+                            'video_transaction_code' => $transctionCode,
+                            'payment_method_id' => $paymentMethodId,
+                            'reward_id' => $rewardId,
+                            'reward_transaction_id' => $rewardTransactionId,
+                            'offer_id' => $offerId,
+                            'video_booking_made_by_role_id' => $bookingMadeByRoleId,
+                            'video_booking_made_by_user_id' => $bookingMadeByUserId,
+                            'video_booking_made_for_family_id' => $familyId,
+                            'video_is_booking_done_for_self' => $isBookingDoneForSelf,
+                            'video_booking_start_time' => $videoStartTime,
+                            'video_booking_end_time' => $videoEndTime,
+                            'video_booking_date' => $bookingDate,
+                            'video_price' => $videoPrice,
+                            'video_booking_paid_amount' => $paidAmount,
+                            'video_booking_offer_price' => $videoServiceFee,
+                            'video_booking_gst_price' => $paidAmount * $getGstResult[0]->gst_percentage / 100,
+                            'video_booking_cgst_price' => $paidAmount * $getGstResult[0]->gst_cgst_percentage / 100,
+                            'video_booking_sgst_price' => $paidAmount * $getGstResult[0]->gst_sgst_percentage / 100,
+                            'video_booking_igst_price' => $paidAmount * $getGstResult[0]->gst_igst_percentage / 100,
+                            'video_service_fee' => $videoServiceFee,
+
+                        ]
+                    );
+
+                    $smsBookingTextForCustomer = "Dear " . $patientFirstName . " " . $patientLastName . " your booking has been confirmed for Dr.  " . $getDoctorQueryResult[0]->doctor_full_name . " dated " . $bookingDate . "";
+                    DB::table('dm_sms_schedule_details')->insertGetId(
+                        [
+                            'mobile_number' => $patientMobileNumber,
+                            'sms_text' => $smsBookingTextForCustomer,
+                            'sms_type' => 'Appointment Booking',
+
+                        ]
+                    );
+                    // $smsBookingTextForClinic = "Booking has made by " . $patientFirstName . " " . $patientLastName . " for Dr.  " . $getDoctorQueryResult[0]->doctor_full_name . " dated " . $bookingDate . "";
+                    // DB::table('dm_sms_schedule_details')->insertGetId(
+                    //     [
+                    //         'mobile_number' => $getClinicQueryResult[0]->clinic_mobile_number,
+                    //         'sms_text' => $smsBookingTextForClinic,
+                    //         'sms_type' => 'Appointment Booking',
+
+                    //     ]
+                    // );
+
+                    $registrationSMSForCustomer = "Your Login details are :" . " Login ID : " . $patientMobileNumber . " Password : " . $password . " You can login by downloading the app https://play.google.com/store/apps/details?id=com.globalneuro.care";
+                    DB::table('dm_sms_schedule_details')->insertGetId(
+                        [
+                            'mobile_number' => $patientMobileNumber,
+                            'sms_text' => $registrationSMSForCustomer,
+                            'sms_type' => 'Registration SMS',
+
+                        ]
+                    );
+                    DB::commit();
+                    $resultData['result'] = "success";
+                    $resultData['bookingCode'] = $bookingCode;
+                    $resultData['bookingId'] = $insertId;
+                    $resultData['bookingType'] = 1;
+
+                    // } else {
+                    //     $resultData['result'] = "bookedself";
+                    // }
+
+                } else {
+                    $resultData['result'] = "booked";
+                }
+            }
+
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = $ex->getMessage();
+        }
+
+        return $resultData;
+    }
+
+    public function getVideoBookingListByClinic($bookigDoneForClinicId,
+        $bookigStatus, $pageNumber, $itemToLoad) {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getQuery = DB::table('dm_video_booking')
+            ->leftJoin('dm_video_slot', 'dm_video_slot.video_slot_id', '=', 'dm_video_booking.video_slot_id')
+            ->leftJoin('dm_video_slot_dates', 'dm_video_slot_dates.video_slot_dates_id', '=', 'dm_video_booking.video_slot_dates_id')
+            ->leftJoin('dm_slot_name', 'dm_slot_name.slot_name_id', '=', 'dm_video_booking.slot_name_id')
+            ->leftJoin('dm_doctor', 'dm_doctor.doctor_id', '=', 'dm_video_booking.doctor_id')
+            ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+            ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+
+            ->leftJoin('dm_family_member', 'dm_family_member.family_member_id', '=', 'dm_video_booking.video_booking_made_for_family_id')
+
+            //->where('dm_video_booking.video_booking_made_by_user_id', '=', $bookigDoneForClinicId)
+            ->where('dm_video_booking.video_booking_is_active', '=', $bookigStatus)
+
+            ->where('dm_specialization.specialization_type', '=', 1)
+            ->where('dm_doctor_education.education_type', '=', 1)
+            
+            ->select([
+
+                'dm_doctor.doctor_id',
+                'dm_doctor.doctor_first_name',
+                'dm_doctor.doctor_last_name',
+                'dm_doctor.doctor_full_name',
+                'dm_doctor.doctor_mobile_number',
+                'dm_doctor.doctor_profile_image',
+                'dm_specialization.specialization_name',
+                'dm_doctor.doctor_overall_experience',
+                'dm_doctor_education.education_name',
+
+                'dm_family_member.family_member_id',
+                'dm_family_member.user_id',
+                'dm_family_member.family_member_first_name',
+                'dm_family_member.family_member_last_name',
+                'dm_family_member.family_member_full_name',
+                'dm_family_member.family_member_mobile_number',
+                'dm_family_member.family_member_profile_image',
+                'dm_family_member.is_self',
+
+                'dm_video_slot.video_slot_id',
+
+                'dm_video_slot_dates.video_slot_dates_id',
+
+                'dm_slot_name.slot_name_id',
+                'dm_slot_name.slot_name',
+
+                'dm_video_booking.video_booking_id',
+                'dm_video_booking.video_slot_time_date_wise_id',
+                'dm_video_booking.video_booking_code',
+                'dm_video_booking.video_booking_made_by_role_id',
+                'dm_video_booking.video_booking_made_by_user_id',
+                'dm_video_booking.video_booking_made_for_family_id',
+                'dm_video_booking.video_is_booking_done_for_self',
+                'dm_video_booking.video_start_time',
+                'dm_video_booking.video_end_time',
+                'dm_video_booking.video_price',
+                'dm_video_booking.video_service_fee',
+                'dm_video_booking.video_booking_cancellation_days',
+                'dm_video_booking.video_booking_is_active',
+
+                DB::raw('DATE_FORMAT(dm_video_booking.video_booking_date, "%d-%m-%Y") as video_booking_date', "%d-%m-%Y"),
+
+                DB::raw('if(DATE_sub(DATE_FORMAT(dm_video_booking.video_booking_date,"%Y-%m-%d"),
+INTERVAL dm_video_booking.video_booking_cancellation_days DAY)>=date_format(now(),"%Y-%m-%d"),"1","1") as "booking_cancel_date_check"'),
+
+            ]);
+            
+            if($bookigDoneForClinicId!='827')
+            {
+                 $getQuery = $getQuery->where('dm_video_booking.video_booking_made_by_user_id', '=', $bookigDoneForClinicId);
+            }
+            
+            if($bookigStatus==1)
+            {
+                 //$getQuery = $getQuery->where('dm_video_booking.video_booking_date', '>=', date("Y-m-d"));
+            }
+
+             $getQuery = $getQuery->limit($itemToLoad)->offset($pageNumber)->orderBy('dm_video_booking.video_booking_date', 'desc')->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+    // Update profile image
+    public function updateDoctorProfileImage($doctorId, $fileName)
+    {
+        try {
+            DB::beginTransaction();
+            DB::table('dm_doctor')
+                ->where('doctor_id', $doctorId)
+                ->update(['doctor_profile_image' => $fileName]);
+
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+    // Remove profile image
+    public function removeDoctorProfileImage($doctorId, $fileName)
+    {
+        try {
+            DB::beginTransaction();
+            DB::table('dm_doctor')
+                ->where('doctor_id', $doctorId)
+                ->update(['doctor_profile_image' => null]);
+
+            if (file_exists(storage_path('app/public/user_profile_pic/' . $fileName))) {
+                unlink(storage_path('app/public/user_profile_pic/' . $fileName));
+            }
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+
+    // update first name
+    public function updateDoctorFirstName($doctorId, $firstName, $fullName)
+    {
+
+        try {
+            DB::beginTransaction();
+            DB::table('dm_doctor')
+                ->where('doctor_id', $doctorId)
+                ->update(['doctor_first_name' => ucfirst($firstName), 'doctor_full_name' => $fullName]);
+
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+    //update last name
+    public function updateDoctorLastName($doctorId, $lastName, $fullName)
+    {
+
+        try {
+            DB::beginTransaction();
+            DB::table('dm_doctor')
+                ->where('doctor_id', $doctorId)
+                ->update(['doctor_last_name' => ucfirst($lastName), 'doctor_full_name' => $fullName]);
+
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+
+    // update mobile number
+    public function updateDoctorMobileNumber($doctorId, $userId, $mobileNumber)
+    {
+
+        $getQuery = DB::table('dm_user')->
+            where('user_mobile', $mobileNumber)
+            ->where('user_id', '!=', $userId)
+            ->get();
+        if ($getQuery->count() == 0) {
+            try {
+
+                DB::beginTransaction();
+                DB::table('dm_user')
+                    ->where('user_id', $userId)
+
+                    ->update(['user_mobile' => $mobileNumber]);
+                DB::table('dm_doctor')
+                    ->where('doctor_id', $doctorId)
+
+                    ->update(['doctor_mobile_number' => $mobileNumber]);
+
+                DB::commit();
+                $resultData['result'] = "success";
+            } catch (Exception $ex) {
+                DB::rollback();
+            }
+        } else {
+            $resultData['result'] = "exists";
+        }
+        return $resultData;
+    }
+
+    public function getCurrentVideoVisitBookingListForDoctor($pageNumber, $itemToLoad, $doctorId)
+    {
+        $currentDate = date('Y-m-d');
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getQuery = DB::table("dm_video_booking")
+
+            ->join('dm_doctor', 'dm_video_booking.doctor_id', 'dm_doctor.doctor_id')
+
+            ->join('dm_family_member', 'dm_family_member.family_member_id', 'dm_video_booking.video_booking_made_for_family_id')
+
+
+            ->where('dm_video_booking.video_booking_is_active', 1)
+            ->where('dm_video_booking.doctor_id', $doctorId)
+            ->select('dm_video_booking.video_booking_id',
+                'dm_video_booking.video_slot_dates_id',
+                'dm_doctor.doctor_full_name',
+                'dm_doctor.doctor_first_name',
+                'dm_doctor.doctor_last_name',
+                'dm_doctor.doctor_profile_image',
+                'dm_doctor.doctor_device_token',
+                   'dm_doctor.user_id as doctor_user_id',
+
+                'dm_family_member.family_member_mobile_number',
+                'dm_family_member.family_member_full_name',
+                'dm_family_member.family_member_first_name',
+                'dm_family_member.family_member_last_name',
+                'dm_family_member.family_member_token as patient_device_token',
+                'dm_family_member.family_member_profile_image',
+                  'dm_family_member.user_id as family_user_id',
+
+                DB::raw('DATE_FORMAT(dm_video_booking.video_booking_date, "%d-%m-%Y") as video_booking_date'),
+                DB::raw('DATE_FORMAT(now(), "%d-%m-%Y") as server_current_date'),
+
+                DB::raw("(SELECT count(*) FROM dm_video_booking
+          WHERE dm_video_booking.doctor_id =$doctorId and
+         dm_video_booking.video_booking_is_active=1
+          and dm_video_booking.video_booking_date= '$currentDate'
+
+        ) as totalVideoBooking"),'dm_video_booking.remark'
+            )
+            //->where('dm_video_booking.video_booking_date','>=',date('Y-m-d'))
+            ->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->orderBy('dm_video_booking.video_booking_date', 'desc')
+            ->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery));
+            echo json_encode($data_response);
+        }
+
+    }
+
+    public function markVideoVisitComplete($video_booking_id)
+    {
+        try {
+
+            DB::beginTransaction();
+
+            DB::table('dm_video_booking')
+                ->where('video_booking_id', $video_booking_id)
+                ->update([
+                    'video_booking_is_active' => 3, //completed
+                    'video_booking_updated_date' => now(),
+                ]);
+
+            DB::table('dm_video_booking_transaction')
+                ->where('video_booking_id', $video_booking_id)
+                ->update([
+                    'video_booking_transaction_is_active' => 3, //rejected
+                    'video_booking_transaction_update_date' => now(),
+
+                ]);
+
+            DB::commit();
+
+            $resultData['result'] = "success";
+
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+    }
+
+     public function getCompletedVideoVisitForDoctor($pageNumber, $itemToLoad, $doctorId)
+    {
+
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getQuery = DB::table("dm_video_booking")
+
+            ->join('dm_doctor', 'dm_video_booking.doctor_id', 'dm_doctor.doctor_id')
+
+            ->join('dm_family_member', 'dm_family_member.family_member_id', 'dm_video_booking.video_booking_made_for_family_id')
+
+            ->where('dm_video_booking.video_booking_is_active', 3)
+            ->where('dm_video_booking.doctor_id', $doctorId)
+            ->select('dm_video_booking.video_booking_id',
+                'dm_video_booking.video_slot_dates_id',
+                'dm_doctor.doctor_full_name',
+                'dm_doctor.doctor_first_name',
+                'dm_doctor.doctor_last_name',
+                'dm_doctor.doctor_profile_image',
+                   'dm_doctor.user_id as doctor_user_id',
+
+                'dm_family_member.family_member_mobile_number',
+                'dm_family_member.family_member_full_name',
+                'dm_family_member.family_member_first_name',
+                'dm_family_member.family_member_last_name',
+                'dm_family_member.family_member_token as patient_device_token',
+                'dm_doctor.doctor_device_token',
+                'dm_family_member.family_member_profile_image',
+                  'dm_family_member.user_id as family_user_id',
+                'dm_video_booking.video_booking_updated_date',
+                DB::raw('DATE_FORMAT(dm_video_booking.video_booking_date, "%d-%m-%Y") as video_booking_date'),
+                DB::raw('DATE_FORMAT(now(), "%d-%m-%Y") as server_current_date'),
+                  DB::raw('if(DATE_ADD(date_format(dm_video_booking.video_booking_updated_date,"%Y-%m-%d"), interval 7 day)<=date_format(now(),"%Y-%m-%d"),"1","1") as "is_chat_window_visible"'),
+                  'dm_video_booking.remark'
+            )
+            ->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->orderBy('dm_video_booking.video_booking_date', 'desc')
+            ->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery));
+            echo json_encode($data_response);
+        }
+
+    }
+
+    public function logout($user_id)
+    {
+        try {
+
+            DB::beginTransaction();
+            DB::table('dm_family_member')
+                ->where('user_id', $user_id)
+                ->update(['family_member_token' => null]);
+
+            DB::table('dm_user')
+                ->where('user_id', $user_id)
+                ->update(['device_token' => null]);
+
+            DB::table('dm_clinic')
+                ->where('user_id', $user_id)
+                ->update(['clinic_device_token' => null]);
+            DB::table('dm_doctor')
+                ->where('user_id', $user_id)
+                ->update(['doctor_device_token' => null]);
+
+            DB::commit();
+
+            $resultData['result'] = "success";
+
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+    }
+
+
+    public function getInClinicBookingListByDoctor($doctorId,
+            $bookigStatus, $pageNumber, $itemToLoad, $searchText) {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getQuery = DB::table('dm_in_clinic_booking')
+            ->leftJoin('dm_in_clinic_slot', 'dm_in_clinic_slot.in_clinic_slot_id', '=', 'dm_in_clinic_booking.in_clinic_slot_id')
+            ->leftJoin('dm_in_clinic_slot_dates', 'dm_in_clinic_slot_dates.in_clinic_slot_dates_id', '=', 'dm_in_clinic_booking.in_clinic_slot_dates_id')
+            ->leftJoin('dm_slot_name', 'dm_slot_name.slot_name_id', '=', 'dm_in_clinic_booking.slot_name_id')
+            ->leftJoin('dm_clinic', 'dm_clinic.clinic_id', '=', 'dm_in_clinic_booking.clinic_id')
+            ->leftJoin('dm_doctor', 'dm_doctor.doctor_id', '=', 'dm_in_clinic_booking.doctor_id')
+            ->leftJoin('dm_specialization', 'dm_doctor.doctor_id', '=', 'dm_specialization.doctor_id')
+            ->leftJoin('dm_doctor_education', 'dm_doctor.doctor_id', '=', 'dm_doctor_education.doctor_id')
+
+            ->leftJoin('dm_family_member', 'dm_family_member.family_member_id', '=', 'dm_in_clinic_booking.in_clinic_booking_made_for_family_id')
+            ->leftJoin('dm_clinic_image', 'dm_clinic_image.clinic_id', '=', 'dm_clinic.clinic_id')
+            
+            ->where('dm_in_clinic_booking.doctor_id', '=', $doctorId)
+            ->where('dm_in_clinic_booking.in_clinic_booking_is_active', '=', $bookigStatus)
+            ->where('dm_clinic_image.clinic_image_type', '=', 1)
+            ->where('dm_specialization.specialization_type', '=', 1)
+            ->where('dm_doctor_education.education_type', '=', 1)
+            ->select([
+                'dm_clinic.clinic_id',
+                'dm_clinic.clinic_first_name',
+                'dm_clinic.clinic_last_name',
+                'dm_clinic.clinic_full_name',
+                'dm_clinic.clinic_mobile_number',
+                'dm_clinic.clinic_profile_image',
+                'dm_clinic_image.clinic_image',
+                'dm_clinic.clinic_address',
+
+                'dm_doctor.doctor_id',
+                'dm_doctor.doctor_first_name',
+                'dm_doctor.doctor_last_name',
+                'dm_doctor.doctor_full_name',
+                'dm_doctor.doctor_mobile_number',
+                'dm_doctor.doctor_profile_image',
+                'dm_specialization.specialization_name',
+                'dm_doctor.doctor_overall_experience',
+                'dm_doctor_education.education_name',
+                  'dm_doctor.doctor_device_token',
+                      'dm_doctor.user_id as doctor_user_id',
+
+                'dm_family_member.family_member_id',
+                    'dm_family_member.user_id as family_user_id',
+                        'dm_family_member.family_member_token as patient_device_token',
+                'dm_family_member.family_member_first_name',
+                'dm_family_member.family_member_last_name',
+                'dm_family_member.family_member_full_name',
+                'dm_family_member.family_member_mobile_number',
+                'dm_family_member.family_member_profile_image',
+                'dm_family_member.is_self',
+
+                'dm_in_clinic_slot.in_clinic_slot_id',
+
+                'dm_in_clinic_slot_dates.in_clinic_slot_dates_id',
+
+                'dm_slot_name.slot_name_id',
+                'dm_slot_name.slot_name',
+
+                'dm_in_clinic_booking.in_clinic_booking_id',
+                'dm_in_clinic_booking.in_clinic_booking_code',
+                'dm_in_clinic_booking.in_clinic_booking_made_by_role_id',
+                'dm_in_clinic_booking.in_clinic_booking_made_by_user_id',
+                'dm_in_clinic_booking.in_clinic_booking_made_for_family_id',
+                'dm_in_clinic_booking.in_clinic_is_booking_done_for_self',
+                'dm_in_clinic_booking.in_clinic_booking_slot_position',
+                'dm_in_clinic_booking.in_clinic_price',
+                'dm_in_clinic_booking.in_clinic_service_fee',
+                'dm_in_clinic_booking.in_clinic_booking_cancellation_days',
+                'dm_in_clinic_booking.in_clinic_booking_is_active',
+
+                DB::raw('DATE_FORMAT(dm_in_clinic_booking.in_clinic_booking_date, "%d-%m-%Y") as in_clinic_booking_date', "%d-%m-%Y"),
+
+                DB::raw('if(DATE_sub(DATE_FORMAT(dm_in_clinic_booking.in_clinic_booking_date,"%Y-%m-%d"),
+INTERVAL dm_in_clinic_booking.in_clinic_booking_cancellation_days DAY)>=date_format(now(),"%Y-%m-%d"),"1","1") as "booking_cancel_date_check"'),
+
+
+                DB::raw('if(DATE_ADD(date_format(dm_in_clinic_booking.in_clinic_booking_updated_date,"%Y-%m-%d"), interval 7 day)<=date_format(now(),"%Y-%m-%d"),"0","1") as "is_chat_window_visible"'),
+                'dm_in_clinic_booking.in_clinic_booking_current_slot_position',
+                'dm_in_clinic_booking.in_clinic_booking_appointment_time',
+                'dm_in_clinic_booking.in_clinic_booking_reporting_time',
+
+
+            ]);
+            
+            if($searchText!='')
+            {
+                $getQuery = $getQuery->where(function ($getQuery) use ($searchText) {
+                    $getQuery->where(DB::raw('DATE_FORMAT(dm_in_clinic_booking.in_clinic_booking_date,"%d-%m-%Y")'), '=', date('d-m-Y',strtotime(str_replace("/", "-", $searchText))))
+                        ->orwhere('dm_in_clinic_booking.in_clinic_booking_slot_position', 'LIKE', '%'.$searchText.'%')->orwhere('dm_family_member.family_member_mobile_number', 'LIKE', '%'.$searchText.'%')
+                        ->orwhere('dm_family_member.family_member_mobile_number', 'LIKE', '%'.$searchText.'%');
+
+                });
+            }
+            
+            if($bookigStatus)
+            {
+                $getQuery = $getQuery->where('dm_in_clinic_booking.in_clinic_booking_date', '>=', date("Y-m-d"));
+            }
+            
+            
+            $getQuery = $getQuery->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->orderBy('dm_in_clinic_booking.in_clinic_booking_date', 'desc')
+            ->get();
+
+       
+        $data=$getQuery->toArray();
+
+        $report_data=array();
+         foreach($data as $val)
+         {
+         
+            $getDocQuery = DB::table('dm_user_documents')->where('in_clinic_booking_id',$val->in_clinic_booking_id)->select(['id','in_clinic_booking_id','document_files'])->get()->toArray();
+            if(!empty($getDocQuery))
+            {
+                $report_data[]=$getDocQuery;
+            }
+          
+         }
+      
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray(), 'report_data'=>$report_data));
+            echo json_encode($data_response);
+        }
+    }
+
+	 public function getCustomerBookMedicine($userId,
+            $pageNumber, $itemToLoad) {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getQuery = DB::table('dm_book_medicine')
+            ->where('dm_book_medicine.user_id', '=', $userId)
+            ->select([
+                'dm_book_medicine.name',
+                'dm_book_medicine.book_medicine_id',
+                  'dm_book_medicine.user_id',
+                'dm_book_medicine.delivery_address',
+                'dm_book_medicine.mobile_number',
+                'dm_book_medicine.book_medicine_notes',
+                'dm_book_medicine.book_medicine_current_status',
+
+
+                DB::raw('DATE_FORMAT(dm_book_medicine.book_medicine_created_at, "%d-%m-%Y") as book_medicine_created_at', "%d-%m-%Y"),
+
+
+
+                DB::raw("( SELECT count(distinct dm_book_medicine_docs.book_medicine_docs_id)
+                FROM dm_book_medicine_docs where
+                dm_book_medicine_docs.book_medicine_id=dm_book_medicine.book_medicine_id
+
+           ) as totalPrescriptionUploaded"),
+
+
+
+            ])
+            ->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->orderBy('dm_book_medicine.book_medicine_created_at', 'desc')
+            ->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+public function insertPrescriptionName($userId, $fileName, $bookMedicineId)
+    {
+
+        try {
+            DB::beginTransaction();
+
+            DB::table('dm_book_medicine_docs')->insertGetId(
+                ['book_medicine_id' => $bookMedicineId,
+                    'user_id' => $userId,
+                    'book_medicine_doc_name' => $fileName,
+
+                ]
+            );
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+
+			 public function getBookMedicineDoc($userId,   $bookMedicineId ,
+            $pageNumber, $itemToLoad) {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getQuery = DB::table('dm_book_medicine_docs')
+            ->where('dm_book_medicine_docs.user_id', '=', $userId)
+			  ->where('dm_book_medicine_docs.book_medicine_id', '=', $bookMedicineId)
+            ->select([
+                'dm_book_medicine_docs.book_medicine_docs_id',
+                'dm_book_medicine_docs.book_medicine_id',
+                'dm_book_medicine_docs.book_medicine_doc_name',
+
+     DB::raw("( SELECT count(distinct dm_book_medicine_docs.book_medicine_docs_id)
+                FROM dm_book_medicine_docs where
+                dm_book_medicine_docs.user_id=$userId and book_medicine_id=$bookMedicineId
+
+           ) as totalPrescriptionUploaded"),
+                DB::raw('DATE_FORMAT(dm_book_medicine_docs.book_medicine_docs_created_at, "%d-%m-%Y") as book_medicine_docs_created_at', "%d-%m-%Y"),
+
+
+            ])
+            ->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->orderBy('dm_book_medicine_docs.book_medicine_docs_created_at', 'desc')
+            ->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+			 public function deleteBookMedicineDoc($bookMedicineDocId,$fileName)
+    {
+
+        DB::table('dm_book_medicine_docs')
+            ->where('book_medicine_docs_id', $bookMedicineDocId)
+            ->delete();
+
+        if (file_exists(storage_path('app/public/prescription_doc/' . $fileName))) {
+            unlink(storage_path('app/public/prescription_doc/' . $fileName));
+        }
+        $resultData['result'] = "delete";
+
+        return $resultData;
+    }
+	     public function saveBookingMedicine($userId, $name,$deliveryAddress, $prescriptionNote,
+            $mobileNumber) {
+                try {
+                    DB::beginTransaction();
+            $insertQuery = DB::table('dm_book_medicine')->insertGetId(
+                ['user_id' => $userId,
+                    'name'=>$name,
+                    'delivery_address' => $deliveryAddress,
+                    'mobile_number' => $mobileNumber,
+                    'book_medicine_notes' => $prescriptionNote,
+                    'book_medicine_created_by' => $userId,
+
+
+                ]
+            );
+              $inserthishistory=DB::table('dm_book_medicine_order_history')->insertGetId([
+                'book_medicine_id'=>$insertQuery,
+                'user_id'=>$userId,
+                'book_medicine_order_history_created_by'=>$userId,
+                ]);
+                DB::commit();
+            if ($insertQuery > 0) {
+                $resultData['result'] = "success";
+            } else {
+                $resultData['result'] = "fail";
+            }
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+        return $resultData;
+    }
+
+
+    public function getCustomerBookTest($userId,
+                                            $pageNumber, $itemToLoad) {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getQuery = DB::table('dm_book_test')
+            ->where('dm_book_test.user_id', '=', $userId)
+            ->select([
+                'dm_book_test.name',
+                'dm_book_test.book_test_id',
+                'dm_book_test.user_id',
+                'dm_book_test.delivery_address',
+                'dm_book_test.mobile_number',
+                'dm_book_test.book_test_notes',
+                'dm_book_test.book_test_current_status',
+
+
+                DB::raw('DATE_FORMAT(dm_book_test.book_test_created_at, "%d-%m-%Y") as book_test_created_at', "%d-%m-%Y"),
+
+
+
+                DB::raw("( SELECT count(distinct dm_book_test_docs.book_test_docs_id)
+                FROM dm_book_test_docs where
+                dm_book_test_docs.book_test_id= dm_book_test.book_test_id
+
+           ) as totalTestUploaded"),
+
+
+
+            ])
+            ->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->orderBy('dm_book_test.book_test_created_at', 'desc')
+            ->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+
+
+    public function getBookTestDoc($userId,   $bookTestId ,
+                                       $pageNumber, $itemToLoad) {
+        $pageNumber = $pageNumber;
+        $itemToLoad = $itemToLoad;
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getQuery = DB::table('dm_book_test_docs')
+            ->where('dm_book_test_docs.user_id', '=', $userId)
+            ->where('dm_book_test_docs.book_test_id', '=', $bookTestId)
+            ->select([
+                'dm_book_test_docs.book_test_docs_id',
+                'dm_book_test_docs.book_test_id',
+                'dm_book_test_docs.book_test_doc_name',
+
+                DB::raw("( SELECT count(distinct dm_book_test_docs.book_test_docs_id)
+                FROM dm_book_test_docs where
+                dm_book_test_docs.user_id=$userId and book_test_id=$bookTestId
+
+           ) as totalPrescriptionTestUploaded"),
+                DB::raw('DATE_FORMAT(dm_book_test_docs.book_test_docs_created_at, "%d-%m-%Y") as book_test_docs_created_at', "%d-%m-%Y"),
+
+
+            ])
+            ->limit($itemToLoad)
+            ->offset($pageNumber)
+            ->orderBy('dm_book_test_docs.book_test_docs_created_at', 'desc')
+            ->get();
+
+        $data_response = array();
+        if (count($getQuery) <= 0) {
+            array_push($data_response, array('data_status' => 'end'));
+            echo json_encode($data_response);
+        } else {
+            array_push($data_response, array('data_status' => 'ok'));
+            array_push($data_response, array('data' => $getQuery->toArray()));
+            echo json_encode($data_response);
+        }
+    }
+
+
+    public function insertTestName($userId, $fileName, $bookTestId)
+    {
+
+        try {
+            DB::beginTransaction();
+
+            DB::table('dm_book_test_docs')->insertGetId(
+                ['book_test_id' => $bookTestId,
+                    'user_id' => $userId,
+                    'book_test_doc_name' => $fileName,
+
+                ]
+            );
+            DB::commit();
+            $resultData['result'] = "success";
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+
+
+
+    public function saveBookingTest($userId, $name,$deliveryAddress, $prescriptionNote,
+                                    $mobileNumber) {
+                   try {
+                           DB::beginTransaction();
+        $insertQuery = DB::table('dm_book_test')->insertGetId(
+            [
+                'user_id' => $userId,
+                'name'=>$name,
+                'delivery_address' => $deliveryAddress,
+                'mobile_number' => $mobileNumber,
+                'book_test_notes' => $prescriptionNote,
+                'book_test_created_by' => $userId,
+
+
+            ]
+        );
+
+            $inserthishistory=DB::table('dm_book_test_order_history')->insertGetId([
+            'book_test_id'=>$insertQuery,
+            'user_id'=>$userId,
+            'book_test_order_history_created_by'=>$userId,
+            ]);
+            DB::commit();
+
+            if ($insertQuery > 0) {
+                $resultData['result'] = "success";
+            } else {
+                $resultData['result'] = "fail";
+            }
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+            return $resultData;
+        }
+
+
+    public function deleteBookTestDoc($bookTestDocId,$fileName)
+    {
+
+        DB::table('dm_book_test_docs')
+            ->where('book_test_docs_id', $bookTestDocId)
+            ->delete();
+
+        if (file_exists(storage_path('app/public/book_test_doc/' . $fileName))) {
+            unlink(storage_path('app/public/book_test_doc/' . $fileName));
+        }
+        $resultData['result'] = "delete";
+
+        return $resultData;
+    }
+	
+
+     public function getCountry()
+    {
+
+        $getQuery = DB::table('country_code')->where('country_status', 1)
+          ->orderBy('country_name', 'asc')
+            ->get();
+        $getResult= $getQuery->toArray();
+        return $getResult;
+    }
+
+    public function insertAppointmentDoc($fileNames,$originalFileNames)
+    {
+         try {
+            DB::beginTransaction();
+
+                $url=url('');
+                $url_ary=explode("/",$url);
+                array_pop($url_ary);
+                $storage_url=implode("/",$url_ary);
+
+                $file_data=array();
+                $filename=explode(",",$fileNames);
+                $original_file_name=explode(",",$originalFileNames);
+                
+                for($i=0;$i<count($filename);$i++)
+                {
+                    $insert_id='';
+                    $insert_id=DB::table('dm_user_documents')->insertGetId(
+                    [
+                        
+                        'document_files' => $filename[$i],
+                        'original_file_name' => $original_file_name[$i],
+                    ]
+                    );
+                    $url=$storage_url.'/storage/app/public/appointment_files/'.$filename[$i];
+
+                    $file_data[]=array('id'=>$insert_id,'file_name'=>$original_file_name[$i], 'url' => $url);
+                }
+                
+           
+            
+            DB::commit();
+            $resultData=array();
+            $resultData['result'] = "success";
+            $resultData['data'] = $file_data;
+
+            
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+
+    
+    public function getAppointmentDoc($bookingType,$in_clinic_booking_id,$video_booking_id)
+    {
+        if($bookingType==0)
+        {
+            $getQuery = DB::table("dm_user_documents")->select(['id','document_files','original_file_name'])
+            ->where('in_clinic_booking_id',$in_clinic_booking_id)->get();
+           
+        }
+        else if($bookingType==1)
+        {
+             $getQuery = DB::table("dm_user_documents")->select(['id','document_files','original_file_name'])
+            ->where('video_booking_id',$video_booking_id)->get();
+        }
+        
+       
+        $getResult= $getQuery->toArray();
+        
+        return $getResult;
+
+    }
+
+    public function updateBookingId($image_id, $bookingType, $bookingId)
+    {
+
+         try {
+
+            $insertQuery=0;
+            DB::beginTransaction();
+            
+            for($i=0;$i<count($image_id);$i++)
+            {
+                if($image_id[$i]>=0)
+                {
+                    if($bookingType==0) 
+                    {
+                         $insertQuery += DB::table('dm_user_documents')
+                            ->where('id', $image_id[$i])
+                            ->update([
+                                'booking_type' => $bookingType, 
+                                'in_clinic_booking_id' => $bookingId,
+                            ]);
+
+                    }
+                    else if($bookingType==1)
+                    {
+                          $insertQuery += DB::table('dm_user_documents')
+                            ->where('id', $image_id[$i])
+                            ->update([
+                                'booking_type' => $bookingType, 
+                                'video_booking_id' => $bookingId,
+                            ]);
+                    }
+                }
+                
+            }
+
+            DB::commit();
+            
+            if ($insertQuery > 0) {
+                $resultData['result'] = "success";
+            } else {
+                $resultData['result'] = "fail";
+            }
+
+         
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+
+    }
+
+    public function updateBookingReport($bookingId, $bookingType, $filename, $original_file_name)
+    {
+         try {
+            DB::beginTransaction();
+            
+                $url=url('');
+                $url_ary=explode("/",$url);
+                array_pop($url_ary);
+                $storage_url=implode("/",$url_ary);
+
+                $file_data=array();
+                //$filename=explode(",",$fileNames);
+                for($i=0;$i<count($filename);$i++)
+                {
+                    if($bookingType==0)
+                    {
+                        $insert_id='';
+                        $insert_id=DB::table('dm_user_documents')->insertGetId(
+                        [
+                            'booking_type' => $bookingType,
+                            'in_clinic_booking_id' => $bookingId,
+                            'document_files' => $filename[$i],
+                            'original_file_name' => $original_file_name[$i],
+                        ]
+                        );
+                        $url=$storage_url.'/storage/app/public/appointment_files/'.$filename[$i];
+                    }
+                    else if($bookingType==1)
+                    {
+                        $insert_id='';
+                        $insert_id=DB::table('dm_user_documents')->insertGetId(
+                        [
+                            'booking_type' => $bookingType,
+                            'video_booking_id' => $bookingId,
+                            'document_files' => $filename[$i],
+                            'original_file_name' => $original_file_name[$i],
+                        ]
+                        );
+                        $url=$storage_url.'/storage/app/public/appointment_files/'.$filename[$i];
+                    }
+                    
+
+                    $file_data[]=array('id'=>$insert_id, 'file_name'=>$original_file_name[$i], 'url' => $url);
+                }
+                
+           
+            
+            DB::commit();
+           
+            $resultData['result'] = "success";
+            $resultData['data'] = $file_data;
+
+            
+        } catch (Exception $ex) {
+            DB::rollback();
+        }
+
+        return $resultData;
+    }
+    
+    public function deleteAppointmentDoc($image_id)
+    {
+        
+        $getResult=DB::table('dm_user_documents')->where('id',$image_id)->first();
+       
+
+        if ($getResult && $getResult->id > 0) {
+            
+            $file_name =  $getResult->document_files;
+
+            DB::table('dm_user_documents')
+            ->where('id', $getResult->id)
+            ->delete();
+
+            if (file_exists(storage_path('app/public/appointment_files/' . $file_name))) {
+                unlink(storage_path('app/public/appointment_files/' . $file_name));
+            }
+
+            $resultData['result'] = "delete";
+        }
+        else
+        {
+             $resultData['result'] = "not_available";
+        }
+
+        return $resultData;
+
+    }
+    
+	
+	  public function getClinicSlotDates($itemToLoad, $pageNumber)
+    {
+        $today=date('Y-m-d');
+        $after_7_days = date('Y-m-d', strtotime($today. ' +7 days'));
+        
+        
+        $tomorrow = date( "Y-m-d", strtotime( "+1 days" ) ); 
+        $dayaftertomorrow = date( "Y-m-d", strtotime( "+2 days" ) ); 
+
+        if ($pageNumber == 1) {
+            $pageNumber = 0;
+        } else {
+            $pageNumber = $itemToLoad * $pageNumber;
+            $pageNumber = $pageNumber - $itemToLoad;
+        }
+
+        $getHolidayDate2 = DB::table("dm_no_opd_ot")->where('status',1)->where('doctor_id',94)->get()->toArray();
+        $comp_date=array();
+        foreach($getHolidayDate2  as $date2)
+        {
+            $comp_date[]=$date2->no_opd_date;
+
+        }
+
+        
+        $getQuery_today = DB::table("dm_in_clinic_slot_dates")
+            ->select(['dm_in_clinic_slot_dates.in_clinic_slot_dates_id','dm_in_clinic_slot_dates.in_clinic_slot_id','dm_in_clinic_slot_dates.is_booking_available',
+                'dm_in_clinic_slot.clinic_id','dm_in_clinic_slot.doctor_id','dm_clinic.clinic_full_name',
+                'dm_doctor.doctor_full_name','dm_in_clinic_slot_dates.in_clinic_slot_dates','dm_in_clinic_slot_dates.in_clinic_slot_dates_is_active',
+                  'dm_in_clinic_slot_dates.in_clinic_max_slot_position_datewise as max_slot',
+                 
+                DB::raw('DATE_FORMAT(dm_in_clinic_slot_dates.in_clinic_slot_start_time, "%h-%i %p") as start_time', "%d-%m-%Y"),
+                DB::raw('DATE_FORMAT(dm_in_clinic_slot_dates.in_clinic_slot_end_time, "%h-%i %p") as end_time', "%d-%m-%Y"),
+                'dm_city.city_name',
+                DB::raw('if(dm_in_clinic_slot_dates.in_clinic_slot_dates_id>=0,"0","1") as "is_ot_day"')
+
+            ])
+
+            ->join('dm_in_clinic_slot','dm_in_clinic_slot.in_clinic_slot_id','dm_in_clinic_slot_dates.in_clinic_slot_id')
+            ->join('dm_clinic','dm_clinic.clinic_id','dm_in_clinic_slot.clinic_id')
+            ->join('dm_doctor','dm_doctor.doctor_id','dm_in_clinic_slot.doctor_id')
+            ->join('dm_city','dm_city.city_id','dm_clinic.city_id')
+            ->where('dm_in_clinic_slot_dates.in_clinic_slot_dates','>=',$today)
+            ->where('dm_in_clinic_slot_dates.in_clinic_slot_dates_is_active',1)
+            //->whereBetween('dm_in_clinic_slot_dates.in_clinic_slot_dates', [$today, $after_7_days])
+            ->orderBy('dm_in_clinic_slot_dates.in_clinic_slot_dates', 'ASC')
+            ->get();
+           
+
+          //return $getQuery_today->toArray();
+          
+          $resultData = $getQuery_today->toArray();
+          if(empty($resultData))
+          {
+                $n=0;
+                for($i=1;$i<=7;)
+                {
+                    $date='';
+                     $date = date('Y-m-d', strtotime($today. ' +'.$n.' days'));
+                    if(!in_array($date,$comp_date))
+                    {
+                        $default_data = (object) [
+                        "in_clinic_slot_dates_id" => 2012,
+                        "in_clinic_slot_id" => 206,
+                        "is_booking_available" => 1,
+                        "clinic_id" => 33,
+                        "doctor_id" => 94,
+                        "clinic_full_name" => "IQ City Medical College Hospital",
+                        "doctor_full_name" => "Hardik Rajyaguru",
+                        "in_clinic_slot_dates" => $date,
+                        "in_clinic_slot_dates_is_active" => 1,
+                        "max_slot" => "150",
+                        "start_time" => "12-00 AM",
+                        "end_time" => "12-00 AM",
+                        "city_name" => "Durgapur","is_ot_day" => "1"];
+
+                        array_push($resultData,$default_data);
+                        $n++;
+                        $i++;
+                    }
+                    else
+                    {
+                        $n++;
+                    }
+                    
+                }
+          }
+          else
+          {
+                       
+            foreach($resultData as $result)
+            {
+                $dates[]=$result->in_clinic_slot_dates;
+            }
+             
+              if(count($resultData) < 7)
+              {
+                $m=0;
+                  for($i=1;$i<=7;)
+                    {
+                        $date='';
+
+                        $date = date('Y-m-d', strtotime($today. ' +'.$m.' days'));
+
+                         if(!in_array($date,$dates) && !in_array($date,$comp_date))
+                         {
+                           
+                            $default_data = (object)[
+                            "in_clinic_slot_dates_id" => 2012,
+                            "in_clinic_slot_id" => 206,
+                            "is_booking_available" => 1,
+                            "clinic_id" => 33,
+                            "doctor_id" => 94,
+                            "clinic_full_name" => "IQ City Medical College Hospital",
+                            "doctor_full_name" => "Hardik Rajyaguru",
+                            "in_clinic_slot_dates" => $date,
+                            "in_clinic_slot_dates_is_active" => 1,
+                            "max_slot" => "150",
+                            "start_time" => "12-00 AM",
+                            "end_time" => "12-00 AM",
+                            "city_name" => "Durgapur",
+                            "is_ot_day" => "1"
+                            ];
+
+                            array_push($resultData,$default_data);
+                            $m++;
+                            $i++;
+                         }
+                         else
+                         {
+                            $m++;
+                            
+                         }
+                         
+                    }
+              }
+
+              
+          }
+          
+          usort($resultData,function($a,$b){ 
+            return strtotime($a->in_clinic_slot_dates)-strtotime($b->in_clinic_slot_dates); 
+            });
+
+      
+        $getHolidayDate = DB::table("dm_no_opd_ot")->where('status',1)->get()->toArray();
+       
+        $cnt=0;
+        if($getHolidayDate)
+          {
+            $last_date='';
+           
+             $resultData_final = $resultData;   
+
+             for($j=0;$j<count($resultData_final);$j++)
+              {
+             
+                    for($i=0;$i<count($getHolidayDate);$i++)
+                    {
+                      
+                        if($resultData_final[$j]->in_clinic_slot_dates==$getHolidayDate[$i]->no_opd_date && 
+                            $resultData_final[$j]->doctor_id==$getHolidayDate[$i]->doctor_id)
+                        {
+
+                             unset($resultData_final[$j]);
+                             $cnt++;
+                             break;
+                                                          
+                        }
+                        
+                    }
+                    
+                                                      
+              } 
+             
+              if($cnt>0)
+              {
+                    $arr   = end($resultData_final);
+                    $last_date=$arr->in_clinic_slot_dates;
+                    $l=1;
+                    for($k=1;$k<=$cnt;)
+                    {
+                        $date='';
+                        $date = date('Y-m-d', strtotime($last_date. ' +'.$l.' days'));
+                        if(!in_array($date,$comp_date))
+                        {
+
+                            $default_data = (object)[
+                            "in_clinic_slot_dates_id" => 2012,
+                            "in_clinic_slot_id" => 206,
+                            "is_booking_available" => 1,
+                            "clinic_id" => 33,
+                            "doctor_id" => 94,
+                            "clinic_full_name" => "IQ City Medical College Hospital",
+                            "doctor_full_name" => "Hardik Rajyaguru",
+                            "in_clinic_slot_dates" => $date,
+                            "in_clinic_slot_dates_is_active" => 1,
+                            "max_slot" => "150",
+                            "start_time" => "12-00 AM",
+                            "end_time" => "12-00 AM",
+                            "city_name" => "Durgapur",
+                            "is_ot_day" => "1"
+                            ];
+
+                            array_push($resultData_final,$default_data);
+                           
+                            $l++;
+                            $k++;
+                            
+                        }
+                        else
+                        {
+                            $l++;
+                        }
+                    }
+              }        
+              
+              $resultData_final=array_values($resultData_final);
+          } 
+          else
+          {
+            $resultData_final=array_values($resultData);
+
+          }
+
+          
+          $final_date=array();
+          $c=0;
+
+          foreach($resultData_final as $re_final)
+          {
+            if($c<7)
+            {
+                $final_result[]=$re_final;
+            }
+
+            if(!in_array($re_final->in_clinic_slot_dates,$final_date))
+            {
+                 $c++;
+            }
+
+            $final_date[]=$re_final->in_clinic_slot_dates;
+            
+
+          }
+          
+            $data_response = $final_result;
+            return $data_response;
+        
+    }
+	
+       /* Admitted Module API Start */
+    public function addGroupFamilyMember($uhid,$relation_id,$user_id)
+    {
+
+        try {
+
+            $insertQuery=0;
+            DB::beginTransaction();
+            
+            $getResult=DB::table('dm_group_members')->where('uhid',$uhid)->get();
+       
+            if ($getResult->count() > 0) {
+                
+                $getUserCount=DB::table('dm_group_members')->where('uhid',$uhid)->where('login_id',$user_id)->count();
+
+
+                if($getUserCount == 0)
+                {
+                     $getResult =  $getResult->toArray();
+                     $group_id =  $getResult[0]->group_id;
+                    
+                    $getAllUserCount=DB::table('dm_group_members')->where('uhid',$uhid)->where('group_id',$group_id)->count();
+
+                    $getGroupResult=DB::table('dm_chat_group')->where('group_id',$group_id)->first();
+
+                    $max_member = $getGroupResult->max_member;
+
+                    if($getAllUserCount < $max_member)
+                    {
+                        $insertQuery = DB::table('dm_group_members')->insertGetId(
+                        ['group_id' => $group_id,
+                            'role_id' => 1,
+                            'is_family_member' => 1,
+                            'uhid' => $uhid,
+                            'user_id' => '',
+                            'login_id' => $user_id,
+                            'relation_id' => $relation_id,
+                            'status' => 1,
+                        ]);
+
+                        if ($insertQuery > 0) {
+                            $resultData['result'] = "success";
+                        } 
+                    }
+                    else
+                    {
+                        $resultData['result'] = "fail";
+                        $resultData['message'] = "Maximum group member limit exceeds.";
+                    }
+                    
+                          
+            
+                }else{
+                 $resultData['result'] = "fail";
+                  $resultData['message'] = "This family memeber allredy added in chat group.";
+                 
+            }
+                
+
+                
+            }else{
+                 $resultData['result'] = "fail";
+                  $resultData['message'] = $uhid." is not exists";
+                   
+            }
+
+            DB::commit();
+            
+           
+
+         
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+    }
+
+    public function getMemberApproveList($login_user_id)
+    {
+
+            $insertQuery=0;
+            DB::beginTransaction();
+            
+            $getQuery=DB::table('dm_group_members')
+                 ->join('dm_chat_group','dm_chat_group.group_id','dm_group_members.group_id')
+                ->where('dm_group_members.login_id',$login_user_id)
+                ->where('dm_chat_group.group_is_active',1)
+                ->get();
+
+       
+            $getResult= $getQuery->toArray();
+            
+            $resultData=array();
+
+            for($i=0;$i<count($getResult);$i++)
+            {
+                $group_id = $getResult[$i]->group_id;
+                $uhid = $getResult[$i]->uhid;
+               // $relation_name = $getResult[$i]->relation_name;
+
+                $getGroup=DB::table('dm_chat_group')
+                ->where('group_id',$group_id)
+                //->where('group_is_active',1)
+                ->first();
+           
+                $getPatient = DB::table("dm_family_member")->select('dm_family_member.family_member_id','dm_family_member.family_member_full_name','dm_family_member.family_member_mobile_number'
+                
+                )
+                 ->where('dm_family_member.uhid',$uhid)->first();
+                
+
+                if($getResult[$i]->is_family_member==1 && $getResult[$i]->relation_id!='')
+                {
+                    $getRelation=DB::table('dm_patient_relation')
+                    ->where('relation_id',$getResult[$i]->relation_id)
+                    ->first();
+                    $relation_name = $getRelation->relation_name;
+                }
+                else{
+                    $relation_name = "";
+                }
+
+                 
+                $resultData[]=array('group_id'=>$group_id,
+                                    'uhid'=>$uhid,
+                                    'group_name' => $getGroup->group_name,
+                                    'patient_full_name' => $getPatient->family_member_full_name,
+                                    'relation' => $relation_name,
+                                    'is_approved' => $getResult[$i]->status,
+                                    );
+
+            }
+
+            
+            DB::commit();
+            //$data_response = array();
+        if (count($resultData) <= 0) {
+            $data_response = array('data_status' => 'end');
+            //array_push($data_response, array('data_status' => 'end'));
+             return $data_response;
+        } else {
+            //array_push($data_response, array('data_status' => 'ok'));
+            //array_push($data_response, array('data' => $resultData));
+            //echo json_encode($data_response);
+           // $data_response[] = array('data_status' => 'ok');
+
+            $data_response = array('data_status' => 'ok','data' => $resultData);
+            return $data_response;
+        }
+
+    }
+
+    public function getRelationList()
+    {
+
+            $insertQuery=0;
+            DB::beginTransaction();
+            
+            $getQuery=DB::table('dm_patient_relation')->select('relation_id','relation_name','status')->get();
+       
+            $getResult= $getQuery->toArray();
+        
+                        
+            DB::commit();
+            //$data_response = array();
+        if (count($getResult) <= 0) {
+            $data_response = array('data_status' => 'end');
+            return $data_response;
+        } else {
+            $data_response = array('data' => $getResult);
+            return $data_response;
+        }
+
+    }
+
+   public function getAdmittedPatientDetails($uhid)
+    {
+
+            $insertQuery=0;
+            DB::beginTransaction();
+            
+            $get_group_id=DB::table('dm_chat_group')->where('uhid',$uhid)->count();
+
+            if($get_group_id > 0)
+            {
+                $getPatient = DB::table("dm_patient_case_history")->select('dm_family_member.family_member_id as patient_id','dm_family_member.family_member_full_name as patient_full_name','dm_family_member.family_member_mobile_number as patient_mobile_number',
+                'dm_patient_case_history.uhid',
+                'dm_patient_case_history.bed_number',
+                'dm_patient_case_history.case_history',
+                'dm_patient_case_history.high_risk',
+                'dm_patient_case_history.treatment_type',
+                'dm_patient_case_history.patient_admin_date',
+                'dm_patient_case_history.patient_discharge_date',
+                'dm_patient_case_history.status',
+                'dm_patient_case_history.days_after_discharge_chat_window',
+                'dm_chat_group.group_id',
+                'dm_chat_group.group_name',
+                'dm_chat_group.max_member',
+                )
+
+                ->join('dm_family_member','dm_family_member.family_member_id','dm_patient_case_history.patient_id')
+                ->join('dm_chat_group','dm_chat_group.uhid','dm_patient_case_history.uhid')
+                 ->where('dm_patient_case_history.uhid',$uhid)
+                ->where('dm_family_member.is_self',1)->first();
+                
+            }
+            else
+            {
+                $getPatient = DB::table("dm_patient_case_history")->select('dm_family_member.family_member_id as patient_id','dm_family_member.family_member_full_name as patient_full_name','dm_family_member.family_member_mobile_number as patient_mobile_number',
+                'dm_patient_case_history.uhid',
+                'dm_patient_case_history.bed_number',
+                'dm_patient_case_history.case_history',
+                'dm_patient_case_history.high_risk',
+                'dm_patient_case_history.treatment_type',
+                'dm_patient_case_history.patient_admin_date',
+                'dm_patient_case_history.patient_discharge_date',
+                'dm_patient_case_history.status',
+                'dm_patient_case_history.days_after_discharge_chat_window',
+                
+                )
+
+                ->join('dm_family_member','dm_family_member.family_member_id','dm_patient_case_history.patient_id')
+                ->where('dm_patient_case_history.uhid',$uhid)
+                ->where('dm_family_member.is_self',1)->first();
+            }
+             
+            $getGroupQuery=DB::table('dm_group_members')->select('dm_group_members.group_id','dm_group_members.uhid','dm_chat_group.group_name','dm_family_member.family_member_full_name as patient_full_name',
+                'dm_patient_relation.relation_name as relation',
+                'dm_group_members.status as is_approved',
+                'dm_group_members.role_id',
+                'dm_family_member.family_member_mobile_number as mobile_number','dm_family_member.family_member_id as user_id')
+                ->join('dm_family_member','dm_family_member.family_member_id','dm_group_members.login_id')
+                 ->join('dm_patient_relation','dm_patient_relation.relation_id','dm_group_members.relation_id')
+                 ->join('dm_chat_group','dm_chat_group.group_id','dm_group_members.group_id')
+                ->where('dm_group_members.uhid',$uhid)
+                ->where('dm_group_members.role_id',1)
+                ->where('dm_group_members.is_family_member',1)
+
+                ->where('dm_group_members.status',1)
+                ->get();
+            
+            $getGroupResult= $getGroupQuery->toArray();
+
+            $getStaffQuery=DB::table('dm_group_members')->select('dm_group_members.group_id','dm_group_members.uhid','dm_chat_group.group_name','dm_staff.staff_full_name as staff_full_name',
+                'dm_staff.staff_mobile as mobile_number',
+                'dm_group_members.status as is_approved',
+                'dm_group_members.role_id','dm_staff.staff_id as user_id')
+                ->join('dm_staff','dm_staff.staff_id','dm_group_members.login_id')
+                 
+                 ->join('dm_chat_group','dm_chat_group.group_id','dm_group_members.group_id')
+                ->where('dm_group_members.uhid',$uhid)
+                ->where('dm_group_members.role_id',4)
+               
+                ->get();
+            
+            $getStaffResult= $getStaffQuery->toArray();
+
+            $getDoctorQuery=DB::table('dm_group_members')->select('dm_group_members.group_id','dm_group_members.uhid','dm_chat_group.group_name','dm_doctor.doctor_full_name',
+                'dm_doctor.doctor_mobile_number as mobile_number',
+                'dm_group_members.status as is_approved',
+                'dm_group_members.role_id','dm_doctor.doctor_id as user_id')
+                ->join('dm_doctor','dm_doctor.doctor_id','dm_group_members.login_id')
+                 
+                 ->join('dm_chat_group','dm_chat_group.group_id','dm_group_members.group_id')
+                ->where('dm_group_members.uhid',$uhid)
+                ->where('dm_group_members.role_id',3)
+                ->where('dm_group_members.status',1)
+                ->get();
+            
+            $getDoctorResult= $getDoctorQuery->toArray();
+
+            $getResult=array_merge($getDoctorResult,$getStaffResult,$getGroupResult);
+
+            DB::commit();
+     
+        if (empty($getPatient)) {
+            $data_response = array('data_status' => 'end');
+            return $data_response;
+        } else {
+           
+            $data_response = array('data_status' => 'ok','data' => $getPatient,'group_data' => $getResult);
+            return $data_response;
+        }
+
+    }
+    
+    public function getListAllGroupByDoctor($doctorId)
+    {
+
+           DB::beginTransaction();
+            //DB::enableQueryLog();
+
+            $getGroupIdQuery=DB::table('dm_chat_group')->select('dm_chat_group.group_id')
+                ->join('dm_group_members','dm_group_members.group_id','dm_chat_group.group_id')
+                ->where('dm_group_members.role_id',3)
+                ->where('dm_group_members.login_id',$doctorId)
+                ->get();
+            $getGroupIdList= $getGroupIdQuery->toArray();
+            
+            if(!empty($getGroupIdList))
+            {
+                foreach($getGroupIdList as $grp_data)
+                {
+                    $group_id[]=$grp_data->group_id;
+                }
+
+                 $getQuery=DB::table('dm_group_members')->select('dm_group_members.group_id','dm_group_members.uhid','dm_chat_group.group_name','dm_chat_group.group_is_active','dm_family_member.family_member_full_name as patient_full_name','dm_group_members.status as is_approved')
+                
+                ->join('dm_chat_group','dm_chat_group.group_id','dm_group_members.group_id')
+                ->join('dm_family_member','dm_family_member.uhid','dm_group_members.uhid')
+                ->whereIn('dm_group_members.group_id', $group_id)
+                ->where('dm_group_members.role_id',1)
+                ->where('dm_group_members.is_family_member',0)
+                ->where('dm_chat_group.group_is_active',1)
+                ->get();
+       
+                $getResult= $getQuery->toArray();
+                
+
+            }
+
+            DB::commit();
+     
+        if (empty($getResult)) {
+            $data_response = array('data_status' => 'end');
+            return $data_response;
+        } else {
+           
+            $data_response = array('data_status' => 'ok','data' => $getResult);
+            return $data_response;
+        }
+
+    }
+    
+    public function getListAllGroupByStaff($staffId)
+    {
+
+           DB::beginTransaction();
+
+           $getGroupIdQuery=DB::table('dm_chat_group')->select('dm_chat_group.group_id')
+                ->join('dm_group_members','dm_group_members.group_id','dm_chat_group.group_id')
+                ->where('dm_group_members.role_id',4)
+                ->where('dm_group_members.login_id',$staffId)
+                ->get();
+            $getGroupIdList= $getGroupIdQuery->toArray();
+            
+            if(!empty($getGroupIdList))
+            {
+                foreach($getGroupIdList as $grp_data)
+                {
+                    $group_id[]=$grp_data->group_id;
+                }
+
+                 $getQuery=DB::table('dm_group_members')->select('dm_group_members.group_id','dm_chat_group.uhid','dm_chat_group.group_name','dm_chat_group.group_is_active','dm_family_member.family_member_full_name as patient_full_name')
+                
+                ->join('dm_chat_group','dm_chat_group.group_id','dm_group_members.group_id')
+                ->join('dm_family_member','dm_family_member.uhid','dm_group_members.uhid')
+                ->whereIn('dm_group_members.group_id', $group_id)
+                ->where('dm_group_members.role_id',1)
+                ->where('dm_group_members.is_family_member',0)
+                ->where('dm_chat_group.group_is_active',1)
+                ->groupBy('dm_chat_group.group_id')
+                ->get();
+       
+                $getResult= $getQuery->toArray();
+                
+
+            }
+           
+            DB::commit();
+     
+        if (empty($getResult)) {
+            $data_response = array('data_status' => 'end');
+            return $data_response;
+        } else {
+           
+            $data_response = array('data_status' => 'ok','data' => $getResult);
+            return $data_response;
+        }
+
+    }
+
+     public function LeftFromGroup($uhid,$userId,$groupId,$roleId)
+    {
+
+         try {
+
+            $insertQuery=0;
+            DB::beginTransaction();
+            
+            $check_uhid=DB::table('dm_chat_group')->where('uhid',$uhid)->count();
+            $check_group=DB::table('dm_chat_group')->where('group_id',$groupId)->count();
+
+            if($check_uhid > 0 && $check_group > 0)
+            {
+                if($roleId == 4)
+                {
+
+                    //$staff_user_id=DB::table('dm_staff')->where('staff_id',$userId)->select(['user_id'])->first();
+
+                    $insertQuery = DB::table('dm_group_members')
+                   
+                    ->where('uhid', $uhid)
+                    ->where('login_id', $userId)
+                    ->where('role_id', $roleId)
+                    ->where('group_id', $groupId)
+                    ->delete();
+                    // ->update([
+                    //     'status' => 0, 
+                    // ]);
+
+                    if ($insertQuery > 0) {
+                    $resultData['result'] = "success";
+                    } else {
+                        $resultData['result'] = "fail";
+                        $resultData['message'] = "wrong_user_id";
+                    }
+
+                }
+                else if($roleId == 3)
+                {
+
+                    $doc_user_id=DB::table('dm_doctor')->where('doctor_id',$userId)->select(['user_id'])->first();
+
+                    $insertQuery = DB::table('dm_group_members')
+                   
+                    ->where('uhid', $uhid)
+                    ->where('login_id', $userId)
+                    ->where('role_id', $roleId)
+                    ->where('group_id', $groupId)
+                    ->delete();
+                    // ->update([
+                    //     'status' => 0, 
+                    // ]);
+
+                    if ($insertQuery > 0) {
+                    $resultData['result'] = "success";
+                    } else {
+                        $resultData['result'] = "fail";
+                        $resultData['message'] = "wrong_user_id";
+                    }
+
+                }
+                else if($roleId == 1)
+                {
+
+                    $patient_user_id=DB::table('dm_family_member')->where('family_member_id',$userId)->select(['user_id'])->first();
+
+                    $insertQuery = DB::table('dm_group_members')
+                   
+                    ->where('uhid', $uhid)
+                    ->where('login_id', $userId)
+                    ->where('role_id', $roleId)
+                    ->where('group_id', $groupId)
+                    ->delete();
+                    // ->update([
+                    //     'status' => 0, 
+                    // ]);
+
+                    if ($insertQuery > 0) {
+                    $resultData['result'] = "success";
+                    } else {
+                        $resultData['result'] = "fail";
+                        $resultData['message'] = "wrong_user_id";
+                    }
+                }
+
+            }
+            else
+            {
+                if($check_group == 0)
+                {
+                    $resultData['result'] = "fail";
+                    $resultData['message'] = "group_not_exist_or_disable";
+                }
+
+                if($check_uhid == 0)
+                {
+                    $resultData['result'] = "fail";
+                    $resultData['message'] = "wrong_uhid";
+                }
+
+                
+            }
+
+            DB::commit();
+            
+           
+
+         
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+
+    }
+
+
+   public function addUhidByStaff($uhid,$patientId)
+   {
+
+         try {
+
+            $insertQuery=0;
+            DB::beginTransaction();
+            
+            $check_patient_exist = DB::table('dm_family_member')->where('family_member_id',$patientId)->where('uhid','<>','')->count();
+
+            if($check_patient_exist > 0)
+            {
+                $resultData['result'] = "fail";
+                $resultData['message'] = "uhid_already_exist";
+            }
+            else
+            {
+                $check_uhid_exist=DB::table('dm_family_member')->where('uhid',$uhid)->count();
+
+                if($check_uhid_exist > 0)
+                {
+                    $resultData['result'] = "fail";
+                    $resultData['message'] = "this_uhid_already_exist";
+                }
+                else 
+                {
+                    $patient_user_id=DB::table('dm_family_member')->where('family_member_id',$patientId)->select(['family_member_id','user_id','uhid'])->first();
+                   
+                  
+                   if($patient_user_id->family_member_id != '') {
+                         
+
+                        if($patient_user_id->uhid == '')
+                        {
+                            
+                            $insertQuery = DB::table('dm_family_member')
+                            ->where('family_member_id', $patientId)
+                            ->update([
+                                'uhid' => $uhid, 
+                            ]);
+
+                            $insertQuery2 = DB::table('dm_patient_case_history')->insertGetId(
+                                    ['patient_id' => $patientId,
+                                        'uhid' => $uhid,
+                                        'status' => 'Pending',
+                                        
+                                    ]
+                                );
+                            if ($insertQuery > 0 && $insertQuery2 > 0) {
+                                $resultData['result'] = "success";
+                            } 
+
+
+                        }
+                        else
+                        {
+
+                            $check_if_admitted=DB::table('dm_patient_case_history')->where('patient_id',$patientId)->where('uhid',$uhid)->where('status','Admit')->orwhere('status','Pending')->count();
+
+                            if($check_if_admitted == 0)
+                            {
+                                $insertQuery2 = DB::table('dm_patient_case_history')->insertGetId(
+                                    ['patient_id' => $patientId,
+                                        'uhid' => $uhid,
+                                        'status' => 'Pending',
+                                        
+                                    ]
+                                );
+
+                                 $resultData['result'] = "success";
+                            }
+                            else
+                            {
+                                $resultData['result'] = "fail";
+                                $resultData['message'] = "already_admitted";
+                            }
+
+                             
+                        }
+                        
+                   }
+                   else
+                   {
+                        $resultData['result'] = "fail";
+                        $resultData['message'] = "already_added";
+                   }
+                }
+            }
+
+
+            DB::commit();
+            
+            
+         
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+
+    }
+
+    public function getPendingPatientList()
+    {
+
+           DB::beginTransaction();
+            $getQuery=DB::table('dm_patient_case_history')->select('dm_patient_case_history.uhid',
+                    'dm_family_member.family_member_id as patient_id',
+                    'dm_family_member.family_member_full_name as patient_full_name',
+                    'dm_family_member.family_member_mobile_number as patient_mobile_number',
+                    'dm_patient_case_history.status'
+                    )
+                ->join('dm_family_member','dm_family_member.family_member_id','dm_patient_case_history.patient_id')
+                ->where('dm_patient_case_history.status','Pending')
+                ->get();
+       
+            $getResult= $getQuery->toArray();
+
+            DB::commit();
+     
+        if (empty($getResult)) {
+            $data_response = array('data_status' => 'end');
+            return $data_response;
+        } else {
+           
+            $data_response = array('data_status' => 'ok','data' => $getResult);
+            return $data_response;
+        }
+
+    }
+
+    public function getActivePatientList()
+    {
+
+           DB::beginTransaction();
+            $getQuery=DB::table('dm_patient_case_history')->select('dm_patient_case_history.uhid',
+                    'dm_family_member.family_member_id as patient_id',
+                    'dm_family_member.family_member_full_name as patient_full_name',
+                    'dm_family_member.family_member_mobile_number as patient_mobile_number',
+                    'dm_patient_case_history.status'
+                    )
+                ->join('dm_family_member','dm_family_member.family_member_id','dm_patient_case_history.patient_id')
+                ->where('dm_patient_case_history.status','Admit')
+                ->get();
+       
+            $getResult= $getQuery->toArray();
+
+            DB::commit();
+     
+        if (empty($getResult)) {
+            $data_response = array('data_status' => 'end');
+            return $data_response;
+        } else {
+           
+            $data_response = array('data_status' => 'ok','data' => $getResult);
+            return $data_response;
+        }
+
+    }
+
+    public function getDischargedPatientList()
+    {
+
+           DB::beginTransaction();
+            $getQuery=DB::table('dm_patient_case_history')->select('dm_patient_case_history.uhid',
+                    'dm_family_member.family_member_id as patient_id',
+                    'dm_family_member.family_member_full_name as patient_full_name',
+                    'dm_family_member.family_member_mobile_number as patient_mobile_number',
+                    'dm_patient_case_history.status' 
+                    )
+                ->join('dm_family_member','dm_family_member.family_member_id','dm_patient_case_history.patient_id')
+                ->where('dm_patient_case_history.status','Discharge')
+                ->get();
+       
+            $getResult= $getQuery->toArray();
+
+            DB::commit();
+     
+        if (empty($getResult)) {
+            $data_response = array('data_status' => 'end');
+            return $data_response;
+        } else {
+           
+            $data_response = array('data_status' => 'ok','data' => $getResult);
+            return $data_response;
+        }
+
+    }
+
+    public function getDoctorsList($searchText)
+    {
+
+           DB::beginTransaction();
+            $getQuery=DB::table('dm_doctor')->select('doctor_id','doctor_full_name','doctor_mobile_number','doctor_overall_experience')
+                ->where('doctor_is_active','1')
+                ->where('doctor_full_name', 'like', '%' . $searchText . '%')
+                ->orwhere('doctor_mobile_number', 'like', '%' . $searchText . '%')
+                ->get();
+       
+            $getResult= $getQuery->toArray();
+
+            DB::commit();
+     
+        if (empty($getResult)) {
+            $data_response = array('data_status' => 'end');
+            return $data_response;
+        } else {
+           
+            $data_response = array('data_status' => 'ok','data' => $getResult);
+            return $data_response;
+        }
+
+    }
+
+    public function SearchPatientList($searchText)
+    {
+
+           DB::beginTransaction();
+            $getQuery=DB::table('dm_family_member')->select('dm_family_member.family_member_id as patient_id','dm_family_member.family_member_full_name as patient_full_name','dm_family_member.family_member_mobile_number as patient_mobile_number')
+                ->join('dm_user','dm_user.user_id','dm_family_member.user_id')
+
+                ->where('dm_user.role_id',1)
+                ->where('dm_family_member.is_self','1')
+                ->where('dm_family_member.family_member_is_active','1')
+                ->where('dm_family_member.uhid','');
+                if($searchText!='')
+                {
+                                        
+                    $getQuery = $getQuery->where(function ($getQuery) use ($searchText) {
+                        $getQuery->where('dm_family_member.family_member_full_name', 'LIKE', '%'.$searchText.'%')->orwhere('dm_family_member.family_member_mobile_number', 'LIKE', '%'.$searchText.'%');
+                           
+
+                        });
+                     
+                }
+                                
+                $getQuery=$getQuery->get();
+
+            $getQuery2=DB::table('dm_family_member')->select('dm_family_member.family_member_id as patient_id','dm_family_member.family_member_full_name as patient_full_name','dm_family_member.family_member_mobile_number as patient_mobile_number')
+
+                ->join('dm_user','dm_user.user_id','dm_family_member.user_id')
+                ->join('dm_group_members','dm_group_members.login_id','dm_family_member.family_member_id')
+                ->join('dm_patient_case_history','dm_patient_case_history.patient_id','dm_family_member.family_member_id')
+                
+                ->where('dm_user.role_id',1)
+                ->where('dm_family_member.is_self','1')
+                ->where('dm_family_member.family_member_is_active','1')
+                ->where('dm_family_member.uhid','<>','')
+                ->where('dm_group_members.status',0)
+                ->where('dm_patient_case_history.status','Discharge');
+                if($searchText!='')
+                {
+                                        
+                    $getQuery2 = $getQuery2->where(function ($getQuery2) use ($searchText) {
+                        $getQuery2->where('dm_family_member.family_member_full_name', 'LIKE', '%'.$searchText.'%')->orwhere('dm_family_member.family_member_mobile_number', 'LIKE', '%'.$searchText.'%');
+                           
+
+                        });
+                     
+                }
+
+                $getQuery2 = $getQuery2->groupBy('dm_family_member.family_member_id')->get();
+                           
+            $getResult= $getQuery->toArray();
+
+            $getResult2 = $getQuery2->toArray();
+
+            $getResult_final = array_merge($getResult,$getResult2);
+            
+            DB::commit();
+     
+        if (empty($getResult_final)) {
+            $data_response = array('data_status' => 'end');
+            return $data_response;
+        } else {
+           
+            $data_response = array('data_status' => 'ok','data' => $getResult_final);
+            return $data_response;
+        }
+
+    }
+
+    public function submitAdmitPatientDetails($uhid, $patientId, $bedNumber, $caseHistory, $highRisk, $patientAdmitDate, $closeChatDays, $treatmentType, $patientDischargeDate)
+    {
+
+         try {
+
+            $insertQuery=0;
+            DB::beginTransaction();
+                        
+                        
+            $patient_user_id=DB::table('dm_family_member')->where('family_member_id',$patientId)->where('uhid',$uhid)->select(['family_member_id','user_id','uhid'])->count();
+           
+          
+            if ($patient_user_id > 0) {
+                
+                $check_already_admitted=DB::table('dm_patient_case_history')->where('patient_id',$patientId)->where('uhid',$uhid)->where('status','<>','Discharge')->count();
+
+                if($check_already_admitted > 0)
+                {
+                    $patientAdmitDate = date("Y-m-d", strtotime($patientAdmitDate));
+                 
+                    $insertQuery = DB::table('dm_patient_case_history')
+                    ->where('patient_id', $patientId)
+                    ->where('uhid', $uhid)
+                    ->where('status','<>','Discharge')
+                    ->update([
+                        'bed_number' => $bedNumber,
+                        'case_history' => $caseHistory,
+                        'high_risk' => $highRisk,
+                        'treatment_type' => $treatmentType,
+                        'patient_admin_date' => $patientAdmitDate,
+                        'status' => 'Admit',
+                        'days_after_discharge_chat_window' => $closeChatDays, 
+                        'patient_discharge_date' => $patientDischargeDate,
+                    ]);
+                     $resultData['result'] = "success";
+                }
+                else
+                {
+                   $resultData['result'] = "fail";
+                   $resultData['message'] = "not_yet_admitted";
+                }
+                
+                                                
+           }
+           else
+           {
+                $resultData['result'] = 'fail';
+                $resultData['message'] = 'wrong_uhid';
+           }
+           
+            DB::commit();
+            
+                     
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+
+    }
+
+     public function addGroupByStaff($patientId, $doctorId, $staffId, $groupName, $maxMember)
+    {
+
+         try {
+
+            $insertQuery=0;
+            $resultData = array();
+
+            DB::beginTransaction();
+                        
+            $patient_user_id=DB::table('dm_family_member')->where('family_member_id',$patientId)->count();
+           
+            $admitted_id=DB::table('dm_patient_case_history')->where('patient_id',$patientId)->where('status','Admit')->count();
+
+            if ($patient_user_id > 0 && $admitted_id > 0) {
+                
+                $check_group_id=DB::table('dm_group_members')
+                                ->where('login_id',$patientId)
+                                ->where('role_id','1')
+                                ->where('is_family_member','0')
+                                ->where('status','1')->count();
+
+                if($check_group_id == 0)
+                {
+
+                    $get_uhid=DB::table('dm_family_member')->where('family_member_id',$patientId)->select(['family_member_id','uhid'])->first();
+                    $uhid = $get_uhid->uhid;
+
+                    $group_id = DB::table('dm_chat_group')->insertGetId(
+                        [
+                            'uhid' => $uhid,
+                            'group_name' => $groupName,
+                            'max_member' => $maxMember,
+                            'group_is_active' => 1,
+                            
+                        ]);
+
+                    if($group_id > 0)
+                    {
+                        
+
+                        DB::table('dm_group_members')->insertGetId(
+                        [
+                            'group_id' => $group_id,
+                            'login_id' => $patientId,
+                            'role_id' => 1,
+                            'uhid' => $uhid,
+                            
+                        ]);
+
+                         DB::table('dm_group_members')->insertGetId(
+                        [
+                            'group_id' => $group_id,
+                            'login_id' => $doctorId,
+                            'role_id' => 3,
+                            'uhid' => $uhid,
+                            
+                        ]);
+
+                          DB::table('dm_group_members')->insertGetId(
+                        [
+                            'group_id' => $group_id,
+                            'login_id' => $staffId,
+                            'role_id' => 4,
+                            'uhid' => $uhid,
+                            
+                        ]);
+
+                        $updateQuery = DB::table('dm_patient_case_history')
+                        ->where('patient_id', $patientId)
+                        ->where('uhid', $uhid)
+                        ->update([
+                            'group_id' => $group_id, 
+                        ]);
+
+                        $resultData['result'] = "success";
+                        $resultData['group_id'] = $group_id;
+                    }
+
+                   
+                }
+                else
+                {
+                    $resultData['result'] = "fail";
+                    $resultData['message'] = "group_already_exist";
+                }
+
+                    
+               
+                                                
+           }
+           else
+           {
+                $resultData['result'] = "fail";
+                $resultData['message'] = 'not_yet_admitted';
+           }
+           
+            DB::commit();
+            
+         
+         
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+
+    }
+
+    public function addMemberInGroupByStaff($uhid, $groupId, $doctorId, $familyMemberId, $relationId)
+    {
+
+         try {
+
+            $insertQuery=0;
+            $resultData = array();
+
+            DB::beginTransaction();
+                        
+            $check_group_id=DB::table('dm_chat_group')->where('group_id',$groupId)->where('group_is_active',1)->count();
+           
+            $grp_member_id=DB::table('dm_group_members')->where('group_id',$groupId)->where('status','1')->count();
+
+
+            if($check_group_id > 0 && $grp_member_id > 0)
+            {
+                $group_data=DB::table('dm_chat_group')->where('group_id',$groupId)->first();
+                $max_member = $group_data->max_member;
+
+                
+                    if($doctorId > 0)
+                    {
+                        if($grp_member_id < $max_member)
+                        {
+                             $check_doctor_id=DB::table('dm_group_members')->where('group_id',$groupId)->where('login_id',$doctorId)->count();
+                             if($check_doctor_id ==0)
+                             {
+                                $insertQuery=DB::table('dm_group_members')->insertGetId(
+                                    [
+                                        'uhid' => $uhid,
+                                        'group_id' => $groupId,
+                                        'role_id' => 3,
+                                        'login_id' => $doctorId
+                                    ]);
+                                if($insertQuery > 0)
+                                {
+                                    $resultData['result'] = "success";
+                                    $resultData['message'] = "doctor_added";
+                                }
+                             }
+                             else
+                             {
+                                $resultData['result'] = "fail";
+                                $resultData['message'] = 'doctor_exist';
+                             }
+                        }
+                        else
+                        {
+                            $resultData['result'] = "fail";
+                            $resultData['message'] = 'maximum_group_member_limit_exceeds_for_doctor';
+                        }
+                    }
+
+                    if($familyMemberId > 0 && $relationId > 0)
+                    {
+                        if($grp_member_id < $max_member)
+                        {
+                            $check_member_id=DB::table('dm_group_members')->where('group_id',$groupId)->where('login_id',$familyMemberId)->count();
+
+                            if($check_member_id ==0)
+                             {
+                                 $insertQuery=DB::table('dm_group_members')->insertGetId(
+                                        [
+                                            'uhid' => $uhid,
+                                            'group_id' => $groupId,
+                                            'role_id' => 1,
+                                            'login_id' => $familyMemberId,
+                                            'is_family_member' => 1,
+                                            'relation_id' => $relationId,
+                                        ]);
+                                 if($insertQuery > 0)
+                                    {
+                                        $resultData['result'] = "success";
+                                        $resultData['message'] = "family_member_added";
+                                    }
+                            }
+                            else
+                             {
+                                $resultData['result'] = "fail";
+                                $resultData['message'] = 'member_exist';
+                             }
+                        }
+                        else
+                        {
+                            $resultData['result'] = "fail";
+                            $resultData['message'] = 'maximum_group_member_limit_exceeds_for_family_member';
+                        }
+                    }
+                    
+                
+                
+            }
+            else
+            {
+                $resultData['result'] = "fail";
+                $resultData['message'] = 'group_not_exist';
+            }
+
+           
+            DB::commit();
+            
+         
+         
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+
+    }
+
+    public function getAllGroupList()
+    {
+
+            $insertQuery=0;
+            DB::beginTransaction();
+            
+            $getQuery=DB::table('dm_chat_group')->select('group_id','group_name','uhid','group_is_active')->get();
+       
+            $getResult= $getQuery->toArray();
+        
+                        
+            DB::commit();
+            //$data_response = array();
+        if (count($getResult) <= 0) {
+            $data_response = array('data_status' => 'end');
+            return $data_response;
+        } else {
+            $data_response = array('data' => $getResult);
+            return $data_response;
+        }
+
+    }
+
+    public function disableGroup($uhid, $groupId)
+    {
+
+         try {
+
+            $updateQuery=0;
+            DB::beginTransaction();
+            
+            $updateQuery = DB::table('dm_chat_group')
+            ->where('uhid', $uhid)
+            ->where('group_id', $groupId)
+            ->update([
+                'group_is_active' => 0, 
+            ]);
+           
+           $disableMemberQuery = DB::table('dm_group_members')
+            ->where('uhid', $uhid)
+            ->where('group_id', $groupId)
+            ->update([
+                'status' => 0, 
+            ]);
+
+            $dischargeQuery = DB::table('dm_patient_case_history')
+            ->where('uhid', $uhid)
+            ->where('group_id', $groupId)
+            ->update([
+                'status' => 'Discharge', 
+                'patient_discharge_date' => date('Y-m-d')
+            ]);
+            
+            DB::commit();
+            
+            if ($updateQuery > 0) {
+                $resultData['result'] = "success";
+            } else {
+                $resultData['result'] = "fail";
+                $resultData['message'] = "group_is_disabled";
+
+            }
+
+         
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+
+    }
+
+    public function getAdmitPatientNotInGroup()
+    {
+
+           DB::beginTransaction();
+
+           $getGroupQuery=DB::table('dm_chat_group')->select('group_id','group_name','uhid','group_is_active')->get();
+        
+            $getGroupData= $getGroupQuery->toArray();
+
+            if(!empty($getGroupData))
+            {
+                foreach($getGroupData as $group_data)
+                {
+                    $group_uhid[]=$group_data->uhid;
+                }
+
+             
+                $getQuery=DB::table('dm_patient_case_history')->select('dm_patient_case_history.uhid',
+                        'dm_family_member.family_member_id as patient_id',
+                        'dm_family_member.family_member_full_name as patient_full_name',
+                        'dm_family_member.family_member_mobile_number as patient_mobile_number',
+                        'dm_patient_case_history.status'
+                        )
+                    ->join('dm_family_member','dm_family_member.family_member_id','dm_patient_case_history.patient_id')
+                   
+                    ->whereNotIn('dm_patient_case_history.uhid',$group_uhid)
+                    ->where('dm_patient_case_history.status','Admit')   
+                    ->get();
+           
+                $getResult= $getQuery->toArray();
+            }
+            else
+            {
+                
+                $getQuery=DB::table('dm_patient_case_history')->select('dm_patient_case_history.uhid',
+                        'dm_family_member.family_member_id as patient_id',
+                        'dm_family_member.family_member_full_name as patient_full_name',
+                        'dm_family_member.family_member_mobile_number as patient_mobile_number',
+                        'dm_patient_case_history.status'
+                        )
+                    ->join('dm_family_member','dm_family_member.family_member_id','dm_patient_case_history.patient_id')
+                    ->where('dm_patient_case_history.status','Admit')   
+                    ->get();
+           
+                $getResult= $getQuery->toArray();
+            }
+
+            DB::commit();
+     
+        if (empty($getResult)) {
+            $data_response = array('data_status' => 'end');
+            return $data_response;
+        } else {
+           
+            $data_response = array('data_status' => 'ok','data' => $getResult);
+            return $data_response;
+        }
+
+    }
+    
+    public function editAdmitPatientDetails($uhid, $patientId, $bedNumber, $caseHistory, $highRisk, $patientAdmitDate, $closeChatDays, $treatmentType, $patientDischargeDate, $groupId, $maxMember)
+    {
+
+         try {
+
+            $insertQuery=0;
+            DB::beginTransaction();
+                        
+                        
+            $patient_user_id=DB::table('dm_family_member')->where('family_member_id',$patientId)->where('uhid',$uhid)->select(['family_member_id','user_id','uhid'])->count();
+           
+          
+            if ($patient_user_id > 0) {
+                
+                $check_already_admitted=DB::table('dm_patient_case_history')->where('patient_id',$patientId)->where('uhid',$uhid)->where('status','<>','Discharge')->count();
+
+                if($check_already_admitted > 0)
+                {
+                    $patientAdmitDate = date("Y-m-d", strtotime($patientAdmitDate));
+                 
+                    $insertQuery = DB::table('dm_patient_case_history')
+                    ->where('patient_id', $patientId)
+                    ->where('uhid', $uhid)
+                    ->where('status','<>','Discharge')
+                    ->update([
+                        'bed_number' => $bedNumber,
+                        'case_history' => $caseHistory,
+                        'high_risk' => $highRisk,
+                        'treatment_type' => $treatmentType,
+                        'patient_admin_date' => $patientAdmitDate,
+                        'status' => 'Admit',
+                        'days_after_discharge_chat_window' => $closeChatDays, 
+                        'patient_discharge_date' => $patientDischargeDate,
+                    ]);
+
+                    $updateGroupQuery = DB::table('dm_chat_group')
+                    ->where('group_id', $groupId)
+                    ->where('uhid', $uhid)
+                    ->update([
+                        'max_member' => $maxMember,
+                    ]);
+
+                     $resultData['result'] = "success";
+                }
+                else
+                {
+                   $resultData['result'] = "fail";
+                   $resultData['message'] = "not_yet_admitted";
+                }
+                
+                                                
+           }
+           else
+           {
+                $resultData['result'] = 'fail';
+                $resultData['message'] = 'wrong_uhid';
+           }
+           
+            DB::commit();
+            
+                     
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+
+    }
+    
+    public function enableGroup($uhid, $groupId)
+    {
+
+         try {
+
+            $updateQuery=0;
+            DB::beginTransaction();
+            
+            $updateQuery = DB::table('dm_chat_group')
+            ->where('uhid', $uhid)
+            ->where('group_id', $groupId)
+            ->update([
+                'group_is_active' => 1, 
+            ]);
+           
+           $disableMemberQuery = DB::table('dm_group_members')
+            ->where('uhid', $uhid)
+            ->where('group_id', $groupId)
+            ->update([
+                'status' => 1, 
+            ]);
+
+            $dischargeQuery = DB::table('dm_patient_case_history')
+            ->where('uhid', $uhid)
+            ->where('group_id', $groupId)
+            ->update([
+                'status' => 'Admit', 
+                'patient_discharge_date' => ''
+            ]);
+
+          
+            DB::commit();
+            
+            if ($updateQuery > 0) {
+                $resultData['result'] = "success";
+            } else {
+                $resultData['result'] = "fail";
+                $resultData['message'] = "group_is_disabled";
+
+            }
+
+         
+        } catch (Exception $ex) {
+            DB::rollback();
+            $resultData['result'] = "exception";
+        }
+
+        return $resultData;
+
+    }
+      /* Admitted Patient Module end */
+
+}
